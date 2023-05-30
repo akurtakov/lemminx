@@ -1,5 +1,5 @@
 /**
- *  Copyright (c) 2018, 2022 Angelo ZERR
+ *  Copyright (c) 2018, 2023 Angelo ZERR
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v2.0
  *  which accompanies this distribution, and is available at
@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -42,6 +43,10 @@ import org.eclipse.lemminx.commons.TextDocument;
 import org.eclipse.lemminx.customservice.AutoCloseTagResponse;
 import org.eclipse.lemminx.dom.DOMDocument;
 import org.eclipse.lemminx.dom.DOMParser;
+import org.eclipse.lemminx.extensions.colors.settings.XMLColorsSettings;
+import org.eclipse.lemminx.extensions.contentmodel.commands.SurroundWithCommand;
+import org.eclipse.lemminx.extensions.contentmodel.commands.SurroundWithCommand.SurroundWithKind;
+import org.eclipse.lemminx.extensions.contentmodel.commands.SurroundWithCommand.SurroundWithResponse;
 import org.eclipse.lemminx.extensions.contentmodel.settings.ContentModelSettings;
 import org.eclipse.lemminx.extensions.contentmodel.settings.SchemaEnabled;
 import org.eclipse.lemminx.extensions.contentmodel.settings.XMLSchemaSettings;
@@ -51,14 +56,20 @@ import org.eclipse.lemminx.extensions.generators.FileContentGeneratorSettings;
 import org.eclipse.lemminx.services.XMLLanguageService;
 import org.eclipse.lemminx.services.extensions.diagnostics.IXMLErrorCode;
 import org.eclipse.lemminx.services.extensions.save.AbstractSaveContext;
+import org.eclipse.lemminx.services.format.TextEditUtils;
 import org.eclipse.lemminx.settings.SharedSettings;
 import org.eclipse.lemminx.settings.XMLCodeLensSettings;
 import org.eclipse.lemminx.settings.XMLSymbolSettings;
+import org.eclipse.lemminx.settings.capabilities.CompletionResolveSupportProperty;
 import org.eclipse.lemminx.utils.StringUtils;
 import org.eclipse.lemminx.utils.XMLPositionUtility;
 import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CodeActionContext;
 import org.eclipse.lsp4j.CodeLens;
+import org.eclipse.lsp4j.Color;
+import org.eclipse.lsp4j.ColorInformation;
+import org.eclipse.lsp4j.ColorPresentation;
+import org.eclipse.lsp4j.ColorPresentationParams;
 import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.CompletionCapabilities;
 import org.eclipse.lsp4j.CompletionItem;
@@ -83,6 +94,7 @@ import org.eclipse.lsp4j.MarkedString;
 import org.eclipse.lsp4j.MarkupContent;
 import org.eclipse.lsp4j.MarkupKind;
 import org.eclipse.lsp4j.Position;
+import org.eclipse.lsp4j.PrepareRenameResult;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.ReferenceContext;
@@ -91,6 +103,7 @@ import org.eclipse.lsp4j.SelectionRange;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.SymbolKind;
 import org.eclipse.lsp4j.TextDocumentEdit;
+import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.VersionedTextDocumentIdentifier;
 import org.eclipse.lsp4j.WorkspaceEdit;
@@ -117,7 +130,7 @@ public class XMLAssert {
 
 	public static final int DTDNODE_SNIPPETS = 4;
 
-	public static final int NEW_XML_SNIPPETS = 7;
+	public static final int NEW_XML_SNIPPETS = 8;
 
 	public static final int NEW_XSD_SNIPPETS = 1;
 
@@ -152,42 +165,47 @@ public class XMLAssert {
 
 	}
 
-	public static void testCompletionFor(String value, CompletionItem... expectedItems) throws BadLocationException {
-		testCompletionFor(value, null, expectedItems);
-	}
-
-	public static void testCompletionFor(String value, String catalogPath, CompletionItem... expectedItems)
+	public static CompletionList testCompletionFor(String value, CompletionItem... expectedItems)
 			throws BadLocationException {
-		testCompletionFor(value, catalogPath, null, null, expectedItems);
+		return testCompletionFor(value, null, expectedItems);
 	}
 
-	public static void testCompletionFor(String value, int expectedCount, CompletionItem... expectedItems)
+	public static CompletionList testCompletionFor(String value, String catalogPath, CompletionItem... expectedItems)
 			throws BadLocationException {
-		testCompletionFor(value, null, null, expectedCount, expectedItems);
+		return testCompletionFor(value, catalogPath, null, null, expectedItems);
 	}
 
-	public static void testCompletionFor(String value, String catalogPath, String fileURI, Integer expectedCount,
+	public static CompletionList testCompletionFor(String value, int expectedCount, CompletionItem... expectedItems)
+			throws BadLocationException {
+		return testCompletionFor(value, null, null, expectedCount, expectedItems);
+	}
+
+	public static CompletionList testCompletionFor(String value, String catalogPath, String fileURI,
+			Integer expectedCount,
 			CompletionItem... expectedItems) throws BadLocationException {
-		testCompletionFor(new XMLLanguageService(), value, catalogPath, null, fileURI, expectedCount, true,
+		return testCompletionFor(new XMLLanguageService(), value, catalogPath, null, fileURI, expectedCount, true,
 				expectedItems);
 	}
 
-	public static void testCompletionFor(String value, boolean autoCloseTags, CompletionItem... expectedItems)
+	public static CompletionList testCompletionFor(String value, boolean autoCloseTags, CompletionItem... expectedItems)
 			throws BadLocationException {
-		testCompletionFor(new XMLLanguageService(), value, null, null, null, null, autoCloseTags, expectedItems);
+		return testCompletionFor(new XMLLanguageService(), value, null, null, null, null, autoCloseTags, expectedItems);
 	}
 
-	public static void testCompletionFor(XMLLanguageService xmlLanguageService, String value, String catalogPath,
+	public static CompletionList testCompletionFor(XMLLanguageService xmlLanguageService, String value,
+			String catalogPath,
 			Consumer<XMLLanguageService> customConfiguration, String fileURI, Integer expectedCount,
 			boolean autoCloseTags, CompletionItem... expectedItems) throws BadLocationException {
 
 		SharedSettings settings = new SharedSettings();
 		settings.getCompletionSettings().setAutoCloseTags(autoCloseTags);
-		testCompletionFor(xmlLanguageService, value, catalogPath, customConfiguration, fileURI, expectedCount, settings,
+		return testCompletionFor(xmlLanguageService, value, catalogPath, customConfiguration, fileURI, expectedCount,
+				settings,
 				expectedItems);
 	}
 
-	public static void testCompletionFor(XMLLanguageService xmlLanguageService, String value, String catalogPath,
+	public static CompletionList testCompletionFor(XMLLanguageService xmlLanguageService, String value,
+			String catalogPath,
 			Consumer<XMLLanguageService> customConfiguration, String fileURI, Integer expectedCount,
 			SharedSettings sharedSettings, CompletionItem... expectedItems) throws BadLocationException {
 		int offset = value.indexOf('|');
@@ -233,6 +251,7 @@ public class XMLAssert {
 				assertCompletion(list, item, expectedCount);
 			}
 		}
+		return list;
 	}
 
 	public static void assertCompletion(CompletionList completions, CompletionItem expected, Integer expectedCount) {
@@ -262,11 +281,14 @@ public class XMLAssert {
 				assertEquals(expected.getTextEdit().getLeft().getRange(), match.getTextEdit().getLeft().getRange());
 			}
 
-			if (expected.getAdditionalTextEdits() != null && match.getAdditionalTextEdits() != null) {
-				assertEquals(expected.getAdditionalTextEdits().size(), match.getAdditionalTextEdits().size());
-				for (TextEdit expectedATE : expected.getAdditionalTextEdits()) {
-					assertAdditionalTextEdit(match.getAdditionalTextEdits(), expectedATE);
-				}
+			if (expected.getAdditionalTextEdits() != null) {
+				List<TextEdit> matchedAdditionalTextEdits = match.getAdditionalTextEdits() != null
+						? match.getAdditionalTextEdits()
+						: Collections.emptyList();
+				assertEquals(expected.getAdditionalTextEdits().size(),
+						matchedAdditionalTextEdits.size());
+				assertArrayEquals(expected.getAdditionalTextEdits().toArray(),
+						matchedAdditionalTextEdits.toArray());
 			}
 		}
 		if (expected.getFilterText() != null && match.getFilterText() != null) {
@@ -276,6 +298,20 @@ public class XMLAssert {
 		if (expected.getDocumentation() != null) {
 			assertEquals(expected.getDocumentation(), match.getDocumentation());
 		}
+	}
+
+	public static void testCompletionApply(String value, CompletionItem completionItem, String expected)
+			throws BadLocationException {
+		int offset = value.indexOf('|');
+		value = value.substring(0, offset) + value.substring(offset + 1);
+		TextDocument document = new TextDocument(value, "test.xml");
+		List<TextEdit> edits = new ArrayList<>();
+		edits.add(completionItem.getTextEdit().getLeft());
+		if (completionItem.getAdditionalTextEdits() != null) {
+			edits.addAll(completionItem.getAdditionalTextEdits());
+		}
+		String actual = TextEditUtils.applyEdits(document, edits);
+		assertEquals(expected, actual);
 	}
 
 	public static void assertAdditionalTextEdit(List<TextEdit> matches, TextEdit expected) {
@@ -411,7 +447,8 @@ public class XMLAssert {
 			Integer expectedCount, CompletionItem... expectedItems) throws BadLocationException {
 		CompletionItemResolveSupportCapabilities completionItemResolveSupportCapabilities = new CompletionItemResolveSupportCapabilities();
 		completionItemResolveSupportCapabilities
-				.setProperties(Arrays.asList("documentation"));
+				.setProperties(Arrays.asList(CompletionResolveSupportProperty.documentation.name(),
+						CompletionResolveSupportProperty.additionalTextEdits.name()));
 		CompletionItemCapabilities completionItemCapabilities = new CompletionItemCapabilities();
 		completionItemCapabilities.setResolveSupport(completionItemResolveSupportCapabilities);
 		CompletionCapabilities completionCapabilities = new CompletionCapabilities();
@@ -579,9 +616,8 @@ public class XMLAssert {
 
 			if (expected.getAdditionalTextEdits() != null && match.getAdditionalTextEdits() != null) {
 				assertEquals(expected.getAdditionalTextEdits().size(), match.getAdditionalTextEdits().size());
-				for (TextEdit expectedATE : expected.getAdditionalTextEdits()) {
-					assertAdditionalTextEdit(match.getAdditionalTextEdits(), expectedATE);
-				}
+				assertArrayEquals(expected.getAdditionalTextEdits().toArray(),
+						match.getAdditionalTextEdits().toArray());
 			}
 		}
 		if (expected.getFilterText() != null && match.getFilterText() != null) {
@@ -710,6 +746,10 @@ public class XMLAssert {
 				code != null ? code.getCode() : null);
 	}
 
+	public static Range r(int line, int startCharacter, int endCharacter) {
+		return r(line, startCharacter, line, endCharacter);
+	}
+
 	public static Range r(int startLine, int startCharacter, int endLine, int endCharacter) {
 		return new Range(new Position(startLine, startCharacter), new Position(endLine, endCharacter));
 	}
@@ -736,12 +776,14 @@ public class XMLAssert {
 		testPublishDiagnosticsFor(xml, fileURI, null, configuration, expected);
 	}
 
-	public static void testPublishDiagnosticsFor(String xml, String fileURI, XMLValidationRootSettings validationSettings,
+	public static void testPublishDiagnosticsFor(String xml, String fileURI,
+			XMLValidationRootSettings validationSettings,
 			PublishDiagnosticsParams... expected) {
 		testPublishDiagnosticsFor(xml, fileURI, validationSettings, (Consumer<XMLLanguageService>) null, expected);
 	}
 
-	public static void testPublishDiagnosticsFor(String xml, String fileURI, XMLValidationRootSettings validationSettings,
+	public static void testPublishDiagnosticsFor(String xml, String fileURI,
+			XMLValidationRootSettings validationSettings,
 			Consumer<XMLLanguageService> configuration, PublishDiagnosticsParams... expected) {
 		XMLLanguageService xmlLanguageService = new XMLLanguageService();
 		if (configuration != null) {
@@ -756,7 +798,8 @@ public class XMLAssert {
 		testPublishDiagnosticsFor(xml, fileURI, null, xmlLanguageService, expected);
 	}
 
-	public static void testPublishDiagnosticsFor(String xml, String fileURI, XMLValidationRootSettings validationSettings,
+	public static void testPublishDiagnosticsFor(String xml, String fileURI,
+			XMLValidationRootSettings validationSettings,
 			XMLLanguageService xmlLanguageService, PublishDiagnosticsParams... expected) {
 		List<PublishDiagnosticsParams> actual = new ArrayList<>();
 
@@ -829,6 +872,15 @@ public class XMLAssert {
 		return testCodeActionsFor(xml, diagnostic, (String) null, expected);
 	}
 
+	public static List<CodeAction> testCodeActionsFor(String xml, Diagnostic diagnostic, int index,
+			CodeAction... expected)
+			throws BadLocationException {
+		SharedSettings settings = new SharedSettings();
+		settings.getFormattingSettings().setTabSize(4);
+		settings.getFormattingSettings().setInsertSpaces(false);
+		return testCodeActionsFor(xml, diagnostic, null, null, null, settings, null, index, expected);
+	}
+
 	public static List<CodeAction> testCodeActionsFor(String xml, String fileURI, Diagnostic diagnostic,
 			CodeAction... expected) throws BadLocationException {
 		return testCodeActionsFor(xml, fileURI, diagnostic, (String) null, expected);
@@ -849,7 +901,7 @@ public class XMLAssert {
 		SharedSettings settings = new SharedSettings();
 		settings.getFormattingSettings().setTabSize(4);
 		settings.getFormattingSettings().setInsertSpaces(false);
-		return testCodeActionsFor(xml, diagnostic, catalogPath, fileURI, settings, null, expected);
+		return testCodeActionsFor(xml, diagnostic, null, catalogPath, fileURI, settings, null, -1, expected);
 	}
 
 	public static List<CodeAction> testCodeActionsFor(String xml, Diagnostic diagnostic, String catalogPath,
@@ -860,26 +912,33 @@ public class XMLAssert {
 	public static List<CodeAction> testCodeActionsFor(String xml, Diagnostic diagnostic, String catalogPath,
 			SharedSettings sharedSettings, XMLLanguageService xmlLanguageService, CodeAction... expected)
 			throws BadLocationException {
-		return testCodeActionsFor(xml, diagnostic, catalogPath, null, sharedSettings, xmlLanguageService, expected);
+		return testCodeActionsFor(xml, diagnostic, null, catalogPath, null, sharedSettings, xmlLanguageService, -1, expected);
 	}
 
-	public static List<CodeAction> testCodeActionsFor(String xml, Diagnostic diagnostic, String catalogPath,
-			String fileURI, SharedSettings sharedSettings, XMLLanguageService xmlLanguageService,
+	public static List<CodeAction> testCodeActionsFor(String xml, Range range, String catalogPath,
+			SharedSettings sharedSettings, XMLLanguageService xmlLanguageService, CodeAction... expected)
+			throws BadLocationException {
+		return testCodeActionsFor(xml, null, range, catalogPath, null, sharedSettings, xmlLanguageService, -1, expected);
+	}
+	public static List<CodeAction> testCodeActionsFor(String xml, Diagnostic diagnostic, Range range, String catalogPath,
+			String fileURI, SharedSettings sharedSettings, XMLLanguageService xmlLanguageService, int index,
 			CodeAction... expected) throws BadLocationException {
 		int offset = xml.indexOf('|');
-		Range range = null;
-
 		if (offset != -1) {
 			xml = xml.substring(0, offset) + xml.substring(offset + 1);
 		}
 		TextDocument document = new TextDocument(xml.toString(), fileURI != null ? fileURI : FILE_URI);
 
+		// Use range from the text (if marked by "|"-char or from diagnostics
 		if (offset != -1) {
 			Position position = document.positionAt(offset);
 			range = new Range(position, position);
-		} else {
+		} else if (range == null && diagnostic != null) {
 			range = diagnostic.getRange();
 		}
+		
+		// Otherwise, range is to be specified in parameters
+		assertNotNull(range, "Range cannot be null");
 
 		if (xmlLanguageService == null) {
 			xmlLanguageService = new XMLLanguageService();
@@ -896,6 +955,7 @@ public class XMLAssert {
 		CodeActionContext context = new CodeActionContext();
 		context.setDiagnostics(Arrays.asList(diagnostic));
 		DOMDocument xmlDoc = DOMParser.getInstance().parse(document, xmlLanguageService.getResolverExtensionManager());
+		xmlLanguageService.setDocumentProvider((uri) -> xmlDoc);
 
 		List<CodeAction> actual = xmlLanguageService.doCodeActions(context, range, xmlDoc, sharedSettings, () -> {
 		});
@@ -910,6 +970,11 @@ public class XMLAssert {
 		// back into a list
 		CodeAction[] cloned_list = gson.fromJson(jsonstring, CodeAction[].class);
 
+		// Only test the code action at index if a proper index is given
+		if (index >= 0) {
+			assertCodeActions(Arrays.asList(actual.get(index)), Arrays.asList(expected).get(index));
+			return Arrays.asList(cloned_list);
+		}
 		assertCodeActions(actual, expected);
 		return Arrays.asList(cloned_list);
 	}
@@ -921,9 +986,11 @@ public class XMLAssert {
 			ca.setTitle("");
 			if (ca.getDiagnostics() != null) {
 				ca.getDiagnostics().forEach(d -> {
-					d.setSeverity(null);
-					d.setMessage("");
-					d.setSource(null);
+					if (d != null) {
+						d.setSeverity(null);
+						d.setMessage("");
+						d.setSource(null);
+					}
 				});
 			}
 		});
@@ -946,6 +1013,13 @@ public class XMLAssert {
 	/**
 	 * Mock code action for creating a command code action
 	 */
+	public static CodeAction ca(Diagnostic d) {
+		CodeAction codeAction = new CodeAction();
+		codeAction.setTitle("");
+		codeAction.setDiagnostics(Arrays.asList(d));
+		return codeAction;
+	}
+
 	public static CodeAction ca(Diagnostic d, Command c) {
 		CodeAction codeAction = new CodeAction();
 		codeAction.setTitle("");
@@ -1047,6 +1121,10 @@ public class XMLAssert {
 			int endLine, int endChar, String newText) {
 		return Either.forLeft(new TextDocumentEdit(new VersionedTextDocumentIdentifier(uri, 0),
 				Collections.singletonList(te(startLine, startChar, endLine, endChar, newText))));
+	}
+
+	public static Either<TextDocumentEdit, ResourceOperation> teOp(String uri, TextEdit... te) {
+		return Either.forLeft(new TextDocumentEdit(new VersionedTextDocumentIdentifier(uri, 0),	Arrays.asList(te)));
 	}
 
 	// ------------------- Hover assert
@@ -1315,10 +1393,6 @@ public class XMLAssert {
 			xmlLanguageService = new XMLLanguageService();
 		}
 
-		ContentModelSettings settings = new ContentModelSettings();
-		settings.setUseCache(false);
-		xmlLanguageService.doSave(new SettingsSaveContext(settings));
-
 		DOMDocument xmlDocument = DOMParser.getInstance().parse(document,
 				xmlLanguageService.getResolverExtensionManager());
 		xmlLanguageService.setDocumentProvider((uri) -> xmlDocument);
@@ -1408,10 +1482,6 @@ public class XMLAssert {
 		if (xmlLanguageService == null) {
 			xmlLanguageService = new XMLLanguageService();
 		}
-
-		ContentModelSettings settings = new ContentModelSettings();
-		settings.setUseCache(false);
-		xmlLanguageService.doSave(new SettingsSaveContext(settings));
 
 		DOMDocument xmlDocument = DOMParser.getInstance().parse(document,
 				xmlLanguageService.getResolverExtensionManager());
@@ -1512,7 +1582,14 @@ public class XMLAssert {
 		testHighlightsFor(xml, null, expected);
 	}
 
-	public static void testHighlightsFor(String value, String fileURI, DocumentHighlight... expected)
+	public static void testHighlightsFor(String value, String fileURI,
+			DocumentHighlight... expected)
+			throws BadLocationException {
+		testHighlightsFor(new XMLLanguageService(), value, fileURI, expected);
+	}
+
+	public static void testHighlightsFor(XMLLanguageService xmlLanguageService, String value, String fileURI,
+			DocumentHighlight... expected)
 			throws BadLocationException {
 		int offset = value.indexOf('|');
 		value = value.substring(0, offset) + value.substring(offset + 1);
@@ -1520,11 +1597,9 @@ public class XMLAssert {
 		TextDocument document = new TextDocument(value, fileURI != null ? fileURI : "test://test/test.xml");
 		Position position = document.positionAt(offset);
 
-		XMLLanguageService xmlLanguageService = new XMLLanguageService();
-
-		ContentModelSettings settings = new ContentModelSettings();
-		settings.setUseCache(false);
-		xmlLanguageService.doSave(new SettingsSaveContext(settings));
+		if (xmlLanguageService == null) {
+			xmlLanguageService = new XMLLanguageService();
+		}
 
 		DOMDocument xmlDocument = DOMParser.getInstance().parse(document,
 				xmlLanguageService.getResolverExtensionManager());
@@ -1639,6 +1714,46 @@ public class XMLAssert {
 		}
 	}
 
+	// ------------------- Prepare rename assert
+
+	public static PrepareRenameResult pr(Range range, String placeholder) {
+		return new PrepareRenameResult(range, placeholder);
+	}
+
+	public static void assertPrepareRename(String value) throws BadLocationException {
+		assertRename(value, null);
+	}
+
+	public static void assertPrepareRename(String value, PrepareRenameResult expected)
+			throws BadLocationException {
+		assertPrepareRename(null, value, expected);
+	}
+
+	public static void assertPrepareRename(XMLLanguageService languageService, String value,
+			PrepareRenameResult expected) throws BadLocationException {
+		assertPrepareRename(languageService, value, null, expected);
+	}
+
+	public static void assertPrepareRename(XMLLanguageService languageService, String value, String fileURI,
+			PrepareRenameResult expected) throws BadLocationException {
+		int offset = value.indexOf("|");
+		value = value.substring(0, offset) + value.substring(offset + 1);
+
+		fileURI = fileURI != null ? fileURI : "test://test/test.html";
+		DOMDocument document = DOMParser.getInstance().parse(value, fileURI,
+				null);
+
+		Position position = document.positionAt(offset);
+
+		if (languageService == null) {
+			languageService = new XMLLanguageService();
+		}
+		Either<Range, PrepareRenameResult> result = languageService.prepareRename(document, position, () -> {
+		});
+		PrepareRenameResult actual = result != null ? result.getRight() : null;
+		assertEquals(expected, actual);
+	}
+
 	// ------------------- Rename assert
 
 	public static void assertRename(String value, String newText) throws BadLocationException {
@@ -1652,18 +1767,26 @@ public class XMLAssert {
 
 	public static void assertRename(XMLLanguageService languageService, String value, String newText,
 			List<TextEdit> expectedEdits) throws BadLocationException {
+		assertRename(languageService, value, null, newText, expectedEdits);
+	}
+
+	public static void assertRename(XMLLanguageService languageService, String value, String fileURI, String newText,
+			List<TextEdit> expectedEdits) throws BadLocationException {
 		int offset = value.indexOf("|");
 		value = value.substring(0, offset) + value.substring(offset + 1);
 
-		DOMDocument document = DOMParser.getInstance().parse(value, "test://test/test.html", null);
+		fileURI = fileURI != null ? fileURI : "test://test/test.html";
+		DOMDocument document = DOMParser.getInstance().parse(value, fileURI,
+				null);
 
 		Position position = document.positionAt(offset);
 
 		if (languageService == null) {
 			languageService = new XMLLanguageService();
 		}
-		WorkspaceEdit workspaceEdit = languageService.doRename(document, position, newText);
-		List<TextEdit> actualEdits = workspaceEdit.getChanges().get("test://test/test.html");
+		WorkspaceEdit workspaceEdit = languageService.doRename(document, position, newText, () -> {
+		});
+		List<TextEdit> actualEdits = workspaceEdit.getChanges().get(fileURI);
 		assertArrayEquals(expectedEdits.toArray(), actualEdits.toArray());
 	}
 
@@ -1675,17 +1798,17 @@ public class XMLAssert {
 
 	public static void testLinkedEditingFor(String value, String fileURI, LinkedEditingRanges expected)
 			throws BadLocationException {
+		testLinkedEditingFor(new XMLLanguageService(), value, fileURI, expected);
+	}
+
+	public static void testLinkedEditingFor(XMLLanguageService xmlLanguageService, String value, String fileURI,
+			LinkedEditingRanges expected)
+			throws BadLocationException {
 		int offset = value.indexOf('|');
 		value = value.substring(0, offset) + value.substring(offset + 1);
 
 		TextDocument document = new TextDocument(value, fileURI != null ? fileURI : "test://test/test.xml");
 		Position position = document.positionAt(offset);
-
-		XMLLanguageService xmlLanguageService = new XMLLanguageService();
-
-		ContentModelSettings settings = new ContentModelSettings();
-		settings.setUseCache(false);
-		xmlLanguageService.doSave(new SettingsSaveContext(settings));
 
 		DOMDocument xmlDocument = DOMParser.getInstance().parse(document,
 				xmlLanguageService.getResolverExtensionManager());
@@ -1707,7 +1830,7 @@ public class XMLAssert {
 	}
 
 	public static LinkedEditingRanges le(Range... ranges) {
-		return new LinkedEditingRanges(Arrays.asList(ranges));
+		return new LinkedEditingRanges(Arrays.asList(ranges),  "[^\\s>]+");
 	}
 
 	public static LinkedEditingRanges le(String wordPattern, Range... ranges) {
@@ -1718,8 +1841,12 @@ public class XMLAssert {
 
 	public static void assertGrammarGenerator(String xml, FileContentGeneratorSettings grammarSettings,
 			String expected) {
+		assertGrammarGenerator(xml, grammarSettings, new SharedSettings(), expected);
+	}
+
+	public static void assertGrammarGenerator(String xml, FileContentGeneratorSettings grammarSettings,
+			SharedSettings sharedSettings, String expected) {
 		DOMDocument document = DOMParser.getInstance().parse(xml, "test.xml", null);
-		SharedSettings sharedSettings = new SharedSettings();
 		XMLLanguageService languageService = new XMLLanguageService();
 		FileContentGeneratorManager manager = new FileContentGeneratorManager(languageService);
 		String actual = manager.generate(document, sharedSettings, grammarSettings, () -> {
@@ -1775,4 +1902,106 @@ public class XMLAssert {
 		return selectionRange;
 	}
 
+	public static void assertSurroundWith(String xml, SurroundWithKind kind, boolean snippetsSupported,
+			String expected) throws BadLocationException, InterruptedException, ExecutionException {
+		assertSurroundWith(xml, kind, snippetsSupported, (service) -> {
+		}, "src/test/resources/test.xml", expected);
+	}
+
+	public static void assertSurroundWith(String xml, SurroundWithKind kind, boolean snippetsSupported,
+			Consumer<XMLLanguageService> configuration, String uri,
+			String expected) throws BadLocationException, InterruptedException, ExecutionException {
+		MockXMLLanguageServer languageServer = new MockXMLLanguageServer();
+
+		configuration.accept(languageServer.getXMLLanguageService());
+
+		int rangeStart = xml.indexOf('|');
+		int rangeEnd = xml.lastIndexOf('|');
+		// remove '|'
+		StringBuilder x = new StringBuilder(xml.substring(0, rangeStart));
+		if (rangeEnd > rangeStart) {
+			x.append(xml.substring(rangeStart + 1, rangeEnd));
+		}
+		x.append(xml.substring(Math.min(rangeEnd + 1, xml.length())));
+
+		TextDocument document = new TextDocument(x.toString(), "");
+		Position startPos = document.positionAt(rangeStart);
+		Position endPos = rangeStart == rangeEnd ? startPos : document.positionAt(rangeEnd - 1);
+		Range selection = new Range(startPos, endPos);
+
+		TextDocumentIdentifier xmlIdentifier = languageServer.didOpen(uri, x.toString());
+
+		// Execute surround with tags command
+		SurroundWithResponse response = (SurroundWithResponse) languageServer
+				.executeCommand(SurroundWithCommand.COMMAND_ID, xmlIdentifier, selection, kind.name(),
+						snippetsSupported)
+				.get();
+
+		String actual = TextEditUtils.applyEdits(document, Arrays.asList(response.getStart(), response.getEnd()));
+		assertEquals(expected, actual);
+	}
+
+	// ------------------- ColorInformation assert
+
+	public static void testColorInformationFor(String value, String fileURI, XMLColorsSettings colorSettings,
+			ColorInformation... expected) {
+		TextDocument document = new TextDocument(value, fileURI != null ? fileURI : "test://test/test.xml");
+
+		XMLLanguageService xmlLanguageService = new XMLLanguageService();
+		xmlLanguageService.doSave(new SettingsSaveContext(colorSettings));
+
+		DOMDocument xmlDocument = DOMParser.getInstance().parse(document,
+				xmlLanguageService.getResolverExtensionManager());
+		xmlLanguageService.setDocumentProvider((uri) -> xmlDocument);
+
+		List<ColorInformation> actual = xmlLanguageService.findDocumentColors(xmlDocument, () -> {
+		});
+		assertColorInformation(actual, expected);
+	}
+
+	public static ColorInformation colorInfo(double red, double green, double blue, double alpha, Range range) {
+		return new ColorInformation(range, new Color(red, green, blue, alpha));
+	}
+
+	public static void assertColorInformation(List<? extends ColorInformation> actual, ColorInformation... expected) {
+		assertEquals(expected.length, actual.size());
+		for (int i = 0; i < expected.length; i++) {
+			assertEquals(expected[i].getRange(), actual.get(i).getRange());
+			assertEquals(expected[i].getColor(), actual.get(i).getColor());
+		}
+	}
+
+	// ------------------- ColorInformation assert
+
+	public static void testColorPresentationFor(String value, String fileURI, Color color, Range range,
+			XMLColorsSettings colorSettings,
+			ColorPresentation... expected) {
+		TextDocument document = new TextDocument(value, fileURI != null ? fileURI : "test://test/test.xml");
+
+		XMLLanguageService xmlLanguageService = new XMLLanguageService();
+		xmlLanguageService.doSave(new SettingsSaveContext(colorSettings));
+
+		DOMDocument xmlDocument = DOMParser.getInstance().parse(document,
+				xmlLanguageService.getResolverExtensionManager());
+		xmlLanguageService.setDocumentProvider((uri) -> xmlDocument);
+
+		ColorPresentationParams params = new ColorPresentationParams(new TextDocumentIdentifier(document.getUri()),
+				color, range);
+		List<ColorPresentation> actual = xmlLanguageService.getColorPresentations(xmlDocument, params, () -> {
+		});
+		assertColorPresentation(actual, expected);
+	}
+
+	public static void assertColorPresentation(List<? extends ColorPresentation> actual,
+			ColorPresentation... expected) {
+		assertEquals(expected.length, actual.size());
+		for (int i = 0; i < expected.length; i++) {
+			assertEquals(expected[i].getLabel(), actual.get(i).getLabel());
+			assertEquals(expected[i].getTextEdit(), actual.get(i).getTextEdit());
+		}
+	}
+
+	public static ColorPresentation colorPres(String label, TextEdit textEdit) {
+		return new ColorPresentation(label, textEdit);
+	}
 }

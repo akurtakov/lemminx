@@ -12,12 +12,15 @@
 *******************************************************************************/
 package org.eclipse.lemminx.services.extensions.format;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import org.eclipse.lemminx.dom.DOMAttr;
 import org.eclipse.lemminx.dom.DOMElement;
+import org.eclipse.lemminx.extensions.contentmodel.model.CMDocument;
 import org.eclipse.lemminx.services.format.FormatElementCategory;
-import org.eclipse.lemminx.services.format.XMLFormatterDocumentNew;
+import org.eclipse.lemminx.services.format.XMLFormatterDocument;
 import org.eclipse.lemminx.services.format.XMLFormattingConstraints;
 import org.eclipse.lemminx.settings.SharedSettings;
 import org.eclipse.lemminx.settings.XMLFormattingOptions;
@@ -63,8 +66,8 @@ public interface IFormatterParticipant {
 	 * @param edits             the text edit list
 	 * @return true if the given attribute can be formatted and false otherwise.
 	 */
-	default boolean formatAttributeValue(DOMAttr attr, XMLFormatterDocumentNew formatterDocument,
-			int indentLevel, XMLFormattingOptions formattingOptions, List<TextEdit> edits) {
+	default boolean formatAttributeValue(DOMAttr attr, XMLFormatterDocument formatterDocument,
+			XMLFormattingConstraints parentConstraints, XMLFormattingOptions formattingOptions, List<TextEdit> edits) {
 		return false;
 	}
 
@@ -80,7 +83,22 @@ public interface IFormatterParticipant {
 	 *         otherwise.
 	 */
 	default FormatElementCategory getFormatElementCategory(DOMElement element,
-			XMLFormattingConstraints parentConstraints, SharedSettings sharedSettings) {
+			XMLFormattingConstraints parentConstraints, Map<String, Collection<CMDocument>> formattingContext,
+			SharedSettings sharedSettings) {
 		return null;
+	}
+
+	/**
+	 * Returns true if the given element can be collapsed according to grammar
+	 * constraints.
+	 * 
+	 * @param element        the DOM element.
+	 * @param sharedSettings the shared settings.
+	 * 
+	 * @return true if the given element can be collapsed according to grammar
+	 *         constraints.
+	 */
+	default boolean shouldCollapseEmptyElement(DOMElement element, SharedSettings sharedSettings) {
+		return true;
 	}
 }

@@ -183,7 +183,7 @@ public class XMLLanguageServer implements ProcessLanguageServer, XMLLanguageServ
 			if (newTelemetry != null) {
 				getTelemetryManager().setEnabled(newTelemetry.isEnabled());
 			}
-			
+
 			XMLFoldingSettings newFolding = xmlClientSettings.getFolding();
 			if (newFolding != null) {
 				xmlTextDocumentService.getSharedFoldingSettings().merge(newFolding);
@@ -198,6 +198,8 @@ public class XMLLanguageServer implements ProcessLanguageServer, XMLLanguageServ
 			if (newCompletions != null) {
 				xmlTextDocumentService.updateCompletionSettings(newCompletions);
 			}
+			xmlTextDocumentService.getSharedSettings()
+					.setLinkedEditingEnabled(xmlClientSettings.isLinkedEditingEnabled());
 
 			XMLSymbolSettings newSymbols = xmlClientSettings.getSymbols();
 			if (newSymbols != null) {
@@ -236,8 +238,7 @@ public class XMLLanguageServer implements ProcessLanguageServer, XMLLanguageServ
 		if (capabilityManager.getClientCapabilities().shouldLanguageServerExitOnShutdown()) {
 			delayer.schedule(() -> exit(0), 1, TimeUnit.SECONDS);
 		}
-		getTelemetryManager().shutdown();
-		return computeAsync(cc -> new Object());
+		return CompletableFuture.completedFuture(null);
 	}
 
 	@Override

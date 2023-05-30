@@ -17,8 +17,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Vector;
 
 import org.apache.xerces.impl.dv.xs.XSSimpleTypeDecl;
@@ -83,13 +85,19 @@ public class CMXSDElementDeclaration implements CMElementDeclaration {
 	}
 
 	@Override
-	public String getName() {
+	public String getLocalName() {
 		return elementDeclaration.getName();
 	}
 
 	@Override
 	public String getNamespace() {
 		return elementDeclaration.getNamespace();
+	}
+
+	@Override
+	public String getPrefix(String namespaceURI) {
+		// TODO : implement this method
+		return null;
 	}
 
 	@Override
@@ -122,7 +130,7 @@ public class CMXSDElementDeclaration implements CMElementDeclaration {
 				XSObject object = list.item(i);
 				if (object.getType() == XSConstants.ATTRIBUTE_USE) {
 					XSAttributeUse attributeUse = (XSAttributeUse) object;
-					attributes.add(new CMXSDAttributeDeclaration(attributeUse));
+					attributes.add(new CMXSDAttributeDeclaration(this, attributeUse));
 				}
 			}
 		}
@@ -313,29 +321,29 @@ public class CMXSDElementDeclaration implements CMElementDeclaration {
 	}
 
 	public boolean isOptional(String childElementName) {
-		if (elementOptionality == null){
+		if (elementOptionality == null) {
 			this.elementOptionality = new HashMap<String, Boolean>();
 			XSTypeDefinition typeDefinition = elementDeclaration.getTypeDefinition();
 			switch (typeDefinition.getTypeCategory()) {
-				case XSTypeDefinition.SIMPLE_TYPE:
-					break;
-				case XSTypeDefinition.COMPLEX_TYPE:
-					XSParticle particle = ((XSComplexTypeDefinition) typeDefinition).getParticle();
-					if (particle != null) {
-						XSObjectList objectList = ((XSModelGroup) particle.getTerm()).getParticles();
-						for (int i = 0; i < objectList.getLength(); i++) {
-							XSParticle xp = (XSParticle) objectList.item(i);
-							XSTerm t = xp.getTerm();
-							if (t instanceof XSElementDeclaration) {
-								if (xp != null) {
-									elementOptionality.put(t.getName(), xp.getMinOccurs() == 0);
-								}
+			case XSTypeDefinition.SIMPLE_TYPE:
+				break;
+			case XSTypeDefinition.COMPLEX_TYPE:
+				XSParticle particle = ((XSComplexTypeDefinition) typeDefinition).getParticle();
+				if (particle != null) {
+					XSObjectList objectList = ((XSModelGroup) particle.getTerm()).getParticles();
+					for (int i = 0; i < objectList.getLength(); i++) {
+						XSParticle xp = (XSParticle) objectList.item(i);
+						XSTerm t = xp.getTerm();
+						if (t instanceof XSElementDeclaration) {
+							if (xp != null) {
+								elementOptionality.put(t.getName(), xp.getMinOccurs() == 0);
 							}
 						}
 					}
+				}
 			}
 		}
-		Boolean isOptional =  elementOptionality.get(childElementName);
+		Boolean isOptional = elementOptionality.get(childElementName);
 		return (isOptional != null) ? isOptional : false;
 	}
 
@@ -410,13 +418,13 @@ public class CMXSDElementDeclaration implements CMElementDeclaration {
 			if (((XSComplexTypeDecl) typeDefinition).getDerivationMethod() == XSConstants.DERIVATION_EXTENSION) {
 				XSObjectListImpl allAnnotations = new XSObjectListImpl();
 				XSTypeDefinition baseType = ((XSComplexTypeDecl) typeDefinition).getBaseType();
-				//Get annotations for current type
+				// Get annotations for current type
 				for (Object xsObject : annotation.toArray()) {
 					if (((XSObject) xsObject) != null) {
 						allAnnotations.addXSObject((XSObject) xsObject);
 					}
 				}
-				//Get annotations for base type
+				// Get annotations for base type
 				for (Object xsObject : getElementAnnotations(baseType).toArray()) {
 					if (((XSObject) xsObject) != null) {
 						allAnnotations.addXSObject((XSObject) xsObject);
@@ -435,7 +443,7 @@ public class CMXSDElementDeclaration implements CMElementDeclaration {
 	@Override
 	public CMElementDeclaration findCMElement(String tag, String namespace) {
 		for (CMElementDeclaration cmElement : getElements()) {
-			if (cmElement.getName().equals(tag)) {
+			if (cmElement.getLocalName().equals(tag)) {
 				return cmElement;
 			}
 		}
@@ -443,9 +451,9 @@ public class CMXSDElementDeclaration implements CMElementDeclaration {
 	}
 
 	@Override
-	public CMAttributeDeclaration findCMAttribute(String attributeName) {
+	public CMAttributeDeclaration findCMAttribute(String attributeName, String namespace) {
 		for (CMAttributeDeclaration cmAttribute : getAttributes()) {
-			if (cmAttribute.getName().equals(attributeName)) {
+			if (cmAttribute.getLocalName().equals(attributeName)) {
 				return cmAttribute;
 			}
 		}
@@ -454,7 +462,7 @@ public class CMXSDElementDeclaration implements CMElementDeclaration {
 
 	@Override
 	public String toString() {
-		return getName();
+		return getLocalName();
 	}
 
 	@Override
@@ -465,6 +473,11 @@ public class CMXSDElementDeclaration implements CMElementDeclaration {
 			return complexTypeDefinition.getContentType() == XSComplexTypeDefinition.CONTENTTYPE_EMPTY;
 		}
 		return false;
+	}
+
+	@Override
+	public boolean isNillable() {
+		return elementDeclaration == null ? false : elementDeclaration.getNillable();
 	}
 
 	@Override
@@ -570,5 +583,16 @@ public class CMXSDElementDeclaration implements CMElementDeclaration {
 			return complexTypeDefinition.getContentType() == XSComplexTypeDefinition.CONTENTTYPE_MIXED;
 		}
 		return false;
+	}
+
+	@Override
+	public Set<CMElementDeclaration> getRequiredElements() {
+		Set<CMElementDeclaration> requiredElements = new LinkedHashSet<>();
+		for (CMElementDeclaration element : elements) {
+			if (!isOptional(element.getLocalName())) {
+				requiredElements.add(element);
+			}
+		}
+		return requiredElements;
 	}
 }

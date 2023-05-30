@@ -14,10 +14,13 @@ package org.eclipse.lemminx.settings.capabilities;
 
 import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.CODE_ACTION_ID;
 import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.CODE_LENS_ID;
+import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.COLOR_ID;
 import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.COMPLETION_ID;
 import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.DEFAULT_CODEACTION_OPTIONS;
+import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.DEFAULT_COLOR_OPTIONS;
 import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.DEFAULT_COMPLETION_OPTIONS;
 import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.DEFAULT_LINK_OPTIONS;
+import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.DEFAULT_RENAME_OPTIONS;
 import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.DEFINITION_ID;
 import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.DOCUMENT_HIGHLIGHT_ID;
 import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.DOCUMENT_SYMBOL_ID;
@@ -32,6 +35,7 @@ import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConsta
 import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.SELECTION_RANGE_ID;
 import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.TEXT_DOCUMENT_CODE_ACTION;
 import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.TEXT_DOCUMENT_CODE_LENS;
+import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.TEXT_DOCUMENT_COLOR;
 import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.TEXT_DOCUMENT_COMPLETION;
 import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.TEXT_DOCUMENT_DEFINITION;
 import static org.eclipse.lemminx.settings.capabilities.ServerCapabilitiesConstants.TEXT_DOCUMENT_DOCUMENT_SYMBOL;
@@ -163,8 +167,11 @@ public class XMLCapabilityManager {
 		if (this.getClientCapabilities().isLinkDynamicRegistrationSupported()) {
 			registerCapability(LINK_ID, TEXT_DOCUMENT_LINK, DEFAULT_LINK_OPTIONS);
 		}
+		if (this.getClientCapabilities().isColorDynamicRegistrationSupported()) {
+			registerCapability(COLOR_ID, TEXT_DOCUMENT_COLOR, DEFAULT_COLOR_OPTIONS);
+		}
 		if (this.getClientCapabilities().isRenameDynamicRegistrationSupported()) {
-			registerCapability(RENAME_ID, TEXT_DOCUMENT_RENAME);
+			registerCapability(RENAME_ID, TEXT_DOCUMENT_RENAME, DEFAULT_RENAME_OPTIONS);
 		}
 		if (this.getClientCapabilities().isDefinitionDynamicRegistered()) {
 			registerCapability(DEFINITION_ID, TEXT_DOCUMENT_DEFINITION);
@@ -189,6 +196,8 @@ public class XMLCapabilityManager {
 		List<FileSystemWatcher> watchers = new ArrayList<>(2);
 		watchers.add(new FileSystemWatcher(Either.forLeft("**/*.xsd")));
 		watchers.add(new FileSystemWatcher(Either.forLeft("**/*.dtd")));
+		watchers.add(new FileSystemWatcher(Either.forLeft("**/*.rng")));
+		watchers.add(new FileSystemWatcher(Either.forLeft("**/*.rnc")));
 		DidChangeWatchedFilesRegistrationOptions options = new DidChangeWatchedFilesRegistrationOptions(watchers);
 		registerCapability(WORKSPACE_WATCHED_FILES_ID, WORKSPACE_WATCHED_FILES, options);
 	}

@@ -112,12 +112,12 @@ public class XMLPositionUtility {
 	 * Returns the attribute value range and null otherwise.
 	 *
 	 * @param attr        the attribute.
-	 * @param withouQuote true if range must remove the quote and false otherwise.
+	 * @param withoutQuote true if range must remove the quote and false otherwise.
 	 * @return the attribute value range and null otherwise.
 	 */
-	public static Range selectAttributeValue(DOMAttr attr, boolean withouQuote) {
+	public static Range selectAttributeValue(DOMAttr attr, boolean withoutQuote) {
 		if (attr != null) {
-			return createAttrValueRange(attr, attr.getOwnerDocument());
+			return createAttrValueRange(attr, attr.getOwnerDocument(), withoutQuote);
 		}
 		return null;
 	}
@@ -141,8 +141,9 @@ public class XMLPositionUtility {
 		DOMNode element = document.findNodeAt(offset);
 		if (element != null && element.hasAttributes()) {
 			List<DOMAttr> attribues = element.getAttributeNodes();
-			for (DOMAttr attr : attribues) {
-				if (attrValue.equals(attr.getValue())) {
+			for (int i = attribues.size() - 1; i >= 0; i--) {
+				DOMAttr attr = attribues.get(i);
+				if (offset > attr.getStart() && attrValue.equals(attr.getValue())) {
 					return createAttrValueRange(attr, document);
 				}
 			}
@@ -683,7 +684,7 @@ public class XMLPositionUtility {
 		DOMNode element = document.findNodeAt(offset);
 		if (element != null) {
 			for (DOMNode node : element.getChildren()) {
-				if (node.isCharacterData()) {
+				if (node.isText() || node.isCDATA()) {
 					DOMCharacterData data = (DOMCharacterData) node;
 					int start = data.getStartContent();
 					Integer end = null;
@@ -954,13 +955,21 @@ public class XMLPositionUtility {
 	 *         <code>target</code> nodes.
 	 */
 	public static LocationLink createLocationLink(DOMRange origin, DOMRange target) {
-		Range originSelectionRange = null;
-		if (origin instanceof DOMElement) {
-			originSelectionRange = selectStartTagName((DOMElement) origin);
-		} else {
-			originSelectionRange = XMLPositionUtility.createRange(origin);
-		}
+		Range originSelectionRange = createSelectionRange(origin);
 		return createLocationLink(originSelectionRange, target);
+	}
+
+	/**
+	 * Returns the selection range for the given <code>origin</code> node.
+	 *
+	 * @param origin the origin node.
+	 * @return the selection range for the given <code>origin</code> node.
+	 */
+	public static Range createSelectionRange(DOMRange origin) {
+		if (origin instanceof DOMElement) {
+			return selectStartTagName((DOMElement) origin);
+		}
+		return XMLPositionUtility.createRange(origin);
 	}
 
 	/**
@@ -1143,17 +1152,17 @@ public class XMLPositionUtility {
 
 	/**
 	 * Select the value from the start/end node without quote.
-	 * 
+	 *
 	 * For the given attr value:
-	 * 
+	 *
 	 * <p>
 	 * <element attr="value" />
 	 * </p>
-	 * 
+	 *
 	 * it will return <element attr="|value|" /> range without ".
-	 * 
+	 *
 	 * @param node the DOM node.
-	 * 
+	 *
 	 * @return the value from the start/end node without quote.
 	 */
 	public static Range selectValueWithoutQuote(DOMRange node) {

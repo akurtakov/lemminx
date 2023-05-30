@@ -27,15 +27,16 @@ import org.eclipse.lemminx.extensions.contentmodel.model.CMElementDeclaration;
 import org.eclipse.lemminx.extensions.contentmodel.model.ContentModelManager;
 import org.eclipse.lemminx.extensions.contentmodel.utils.XMLGenerator;
 import org.eclipse.lemminx.extensions.xsi.XSISchemaModel;
-import org.eclipse.lemminx.services.extensions.HoverParticipantAdapter;
-import org.eclipse.lemminx.services.extensions.IHoverRequest;
 import org.eclipse.lemminx.services.extensions.ISharedSettingsRequest;
+import org.eclipse.lemminx.services.extensions.hover.HoverParticipantAdapter;
+import org.eclipse.lemminx.services.extensions.hover.IHoverRequest;
 import org.eclipse.lemminx.uriresolver.CacheResourceDownloadingException;
 import org.eclipse.lemminx.utils.MarkupContentFactory;
 import org.eclipse.lemminx.utils.StringUtils;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.MarkupContent;
 import org.eclipse.lsp4j.MarkupKind;
+import org.eclipse.lsp4j.jsonrpc.CancelChecker;
 
 /**
  * Extension to support XML hover based on content model (XML Schema
@@ -44,7 +45,7 @@ import org.eclipse.lsp4j.MarkupKind;
 public class ContentModelHoverParticipant extends HoverParticipantAdapter {
 
 	@Override
-	public Hover onTag(IHoverRequest hoverRequest) throws Exception {
+	public Hover onTag(IHoverRequest hoverRequest, CancelChecker cancelChecker) throws Exception {
 		try {
 			ContentModelManager contentModelManager = hoverRequest.getComponent(ContentModelManager.class);
 			DOMElement element = (DOMElement) hoverRequest.getNode();
@@ -69,7 +70,7 @@ public class ContentModelHoverParticipant extends HoverParticipantAdapter {
 	}
 
 	@Override
-	public Hover onAttributeName(IHoverRequest hoverRequest) throws Exception {
+	public Hover onAttributeName(IHoverRequest hoverRequest, CancelChecker cancelChecker) throws Exception {
 		DOMAttr attribute = (DOMAttr) hoverRequest.getNode();
 		DOMElement element = attribute.getOwnerElement();
 		try {
@@ -79,13 +80,12 @@ public class ContentModelHoverParticipant extends HoverParticipantAdapter {
 				// no bound grammar -> no documentation
 				return null;
 			}
-			String attributeName = attribute.getName();
 			// Compute attribute name declaration documentation from bound grammars
 			List<MarkupContent> contentValues = new ArrayList<>();
 			for (CMDocument cmDocument : cmDocuments) {
 				CMElementDeclaration cmElement = cmDocument.findCMElement(element);
 				if (cmElement != null) {
-					CMAttributeDeclaration cmAttribute = cmElement.findCMAttribute(attributeName);
+					CMAttributeDeclaration cmAttribute = cmElement.findCMAttribute(attribute);
 					if (cmAttribute != null) {
 						MarkupContent content = XMLGenerator.createMarkupContent(cmAttribute, cmElement, hoverRequest);
 						fillHoverContent(content, contentValues);
@@ -99,7 +99,7 @@ public class ContentModelHoverParticipant extends HoverParticipantAdapter {
 	}
 
 	@Override
-	public Hover onAttributeValue(IHoverRequest hoverRequest) throws Exception {
+	public Hover onAttributeValue(IHoverRequest hoverRequest, CancelChecker cancelChecker) throws Exception {
 		DOMAttr attribute = (DOMAttr) hoverRequest.getNode();
 
 		// Attempts to compute specifically for XSI related attributes since
@@ -118,14 +118,13 @@ public class ContentModelHoverParticipant extends HoverParticipantAdapter {
 				// no bound grammar -> no documentation
 				return null;
 			}
-			String attributeName = attribute.getName();
 			String attributeValue = attribute.getValue();
 			// Compute attribute value declaration documentation from bound grammars
 			List<MarkupContent> contentValues = new ArrayList<>();
 			for (CMDocument cmDocument : cmDocuments) {
 				CMElementDeclaration cmElement = cmDocument.findCMElement(element);
 				if (cmElement != null) {
-					CMAttributeDeclaration cmAttribute = cmElement.findCMAttribute(attributeName);
+					CMAttributeDeclaration cmAttribute = cmElement.findCMAttribute(attribute);
 					if (cmAttribute != null) {
 						MarkupContent content = XMLGenerator.createMarkupContent(cmAttribute, attributeValue, cmElement,
 								hoverRequest);
@@ -140,7 +139,7 @@ public class ContentModelHoverParticipant extends HoverParticipantAdapter {
 	}
 
 	@Override
-	public Hover onText(IHoverRequest hoverRequest) throws Exception {
+	public Hover onText(IHoverRequest hoverRequest, CancelChecker cancelChecker) throws Exception {
 		DOMText text = (DOMText) hoverRequest.getNode();
 		DOMElement element = text.getParentElement();
 		if (element == null) {

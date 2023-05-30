@@ -200,6 +200,9 @@ public class CMDTDDocument extends LSPXML11DTDProcessor implements CMDocument {
 			char[] ch = scannedEntity.ch;
 			int wordIndex = entityName.length(); //
 			int startEntityNameIndex = -1;
+			if (endEntityIndex > ch.length) {
+				return -1;
+			}
 			// Loop for characters from the end of the entity (>) to search the entity name
 			// start offset
 			// <!ENTITY name .....> |
@@ -289,7 +292,7 @@ public class CMDTDDocument extends LSPXML11DTDProcessor implements CMDocument {
 			if (i == 0) {
 				declaration = findElementDeclaration(elt.getLocalName(), namespace);
 			} else {
-				declaration = declaration.findCMElement(elt.getLocalName(), namespace);
+				declaration = declaration != null ? declaration.findCMElement(elt.getLocalName(), namespace) : null;
 			}
 			if (declaration == null) {
 				break;
@@ -303,7 +306,7 @@ public class CMDTDDocument extends LSPXML11DTDProcessor implements CMDocument {
 			return null;
 		}
 		for (CMElementDeclaration cmElement : getElements()) {
-			if (tag.equals(cmElement.getName())) {
+			if (tag.equals(cmElement.getLocalName())) {
 				return cmElement;
 			}
 		}
@@ -456,7 +459,7 @@ public class CMDTDDocument extends LSPXML11DTDProcessor implements CMDocument {
 
 	@Override
 	public boolean isDirty() {
-		return tracker != null ? tracker.isDirty() : null;
+		return tracker != null ? tracker.isDirty() : false;
 	}
 
 	@Override

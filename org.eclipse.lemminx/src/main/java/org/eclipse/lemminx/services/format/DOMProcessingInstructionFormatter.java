@@ -14,6 +14,7 @@ package org.eclipse.lemminx.services.format;
 import java.util.List;
 
 import org.eclipse.lemminx.dom.DOMAttr;
+import org.eclipse.lemminx.dom.DOMElement;
 import org.eclipse.lemminx.dom.DOMProcessingInstruction;
 import org.eclipse.lsp4j.TextEdit;
 
@@ -25,11 +26,11 @@ import org.eclipse.lsp4j.TextEdit;
  */
 public class DOMProcessingInstructionFormatter {
 
-	private final XMLFormatterDocumentNew formatterDocument;
+	private final XMLFormatterDocument formatterDocument;
 
 	private final DOMAttributeFormatter attributeFormatter;
 
-	public DOMProcessingInstructionFormatter(XMLFormatterDocumentNew formatterDocument,
+	public DOMProcessingInstructionFormatter(XMLFormatterDocument formatterDocument,
 			DOMAttributeFormatter attributeFormatter) {
 		this.formatterDocument = formatterDocument;
 		this.attributeFormatter = attributeFormatter;
@@ -38,6 +39,16 @@ public class DOMProcessingInstructionFormatter {
 	public void formatProcessingInstruction(DOMProcessingInstruction processingInstruction,
 			XMLFormattingConstraints parentConstraints, List<TextEdit> edits) {
 		int prevOffset = processingInstruction.getStartContent();
+		DOMElement parentElement = processingInstruction.getParentElement();
+
+		// If the processing instruction is contained within a parent element
+		// Ex: <a>|<?m2e?></a> --> add a new line and indent here accordingly
+		if (parentElement != null) {
+			int indentLevel = parentConstraints.getIndentLevel();
+			int parentStartCloseOffset = parentElement.getStartTagCloseOffset() + 1;
+			replaceLeftSpacesWithIndentation(indentLevel, parentStartCloseOffset, processingInstruction.getStart(),
+					true, edits);
+		}
 		// 1. format attributes : attributes must be in a same line separate with only
 		// one space
 		if (processingInstruction.hasAttributes()) {
@@ -67,4 +78,8 @@ public class DOMProcessingInstructionFormatter {
 		formatterDocument.replaceLeftSpacesWith(leftLimit, to, replacement, edits);
 	}
 
+	private int replaceLeftSpacesWithIndentation(int indentLevel, int from, int to, boolean addLineSeparator,
+			List<TextEdit> edits) {
+		return formatterDocument.replaceLeftSpacesWithIndentation(indentLevel, from, to, addLineSeparator, edits);
+	}
 }

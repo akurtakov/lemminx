@@ -11,17 +11,18 @@
 *******************************************************************************/
 package org.eclipse.lemminx.utils;
 
+import java.io.StringReader;
 import java.net.URL;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParserFactory;
 
 import org.eclipse.lemminx.dom.DOMDocument;
 import org.eclipse.lemminx.dom.DOMElement;
+import org.eclipse.lemminx.dom.DOMNode;
 import org.eclipse.lemminx.dom.DOMParser;
 import org.eclipse.lemminx.uriresolver.URIResolverExtensionManager;
+import org.xml.sax.InputSource;
 import org.xml.sax.SAXNotRecognizedException;
 import org.xml.sax.SAXNotSupportedException;
 
@@ -30,8 +31,6 @@ import org.xml.sax.SAXNotSupportedException;
  *
  */
 public class DOMUtils {
-
-	private static final Logger LOGGER = Logger.getLogger(DOMUtils.class.getName());
 
 	private static final String XSD_EXTENSION = ".xsd";
 
@@ -45,6 +44,12 @@ public class DOMUtils {
 	private static final String HTTP_WWW_W3_ORG_2001_XML_SCHEMA_NS = "http://www.w3.org/2001/XMLSchema";
 
 	private static final String URN_OASIS_NAMES_TC_ENTITY_XMLNS_XML_CATALOG_NS = "urn:oasis:names:tc:entity:xmlns:xml:catalog";
+
+	private static final String RELAXNG_GRAMMAR_NS = "http://relaxng.org/ns/structure/1.0";
+
+	private static final String RNG_EXTENSION = ".rng";
+
+	private static final String RNC_EXTENSION = ".rnc";
 
 	private DOMUtils() {
 
@@ -76,6 +81,76 @@ public class DOMUtils {
 	 */
 	public static boolean isXSD(String uri) {
 		return uri != null && uri.endsWith(XSD_EXTENSION);
+	}
+
+	/**
+	 * Returns true if the XML document is a RelaxNG grammar and false otherwise.
+	 * 
+	 * @return true if the XML document is a RelaxNG grammar and false otherwise.
+	 */
+	public static boolean isRelaxNG(DOMDocument document) {
+		if (isRelaxNGXMLSyntax(document)) {
+			return true;
+		}
+		if (document == null) {
+			return false;
+		}
+		String uri = document.getDocumentURI();
+		return isRelaxNGUri(uri);
+	}
+
+	/**
+	 * Returns true if the XML document is a RelaxNG grammar XML syntax and false
+	 * otherwise.
+	 * 
+	 * @return true if the XML document is a RelaxNG grammar XML syntax and false
+	 *         otherwise.
+	 */
+	public static boolean isRelaxNGXMLSyntax(DOMDocument document) {
+		if (document == null) {
+			return false;
+		}
+		String uri = document.getDocumentURI();
+		if (isRelaxNGUriXMLSyntax(uri)) {
+			return true;
+		}
+		// check root element is bound with RNG namespace
+		// (http://relaxng.org/ns/structure/1.0)
+		return checkRootNamespace(document, RELAXNG_GRAMMAR_NS);
+	}
+
+	/**
+	 * Returns true if the given URI is a RelaxNG grammar XML syntax and false
+	 * otherwise.
+	 * 
+	 * @param uri the URI to check
+	 * @return true if the given URI is a RelaxNG grammar XML syntax and false
+	 *         otherwise.
+	 */
+	public static boolean isRelaxNGUriXMLSyntax(String uri) {
+		return uri != null && uri.endsWith(RNG_EXTENSION);
+	}
+
+	/**
+	 * Returns true if the given URI is a RelaxNG grammar and false otherwise.
+	 * 
+	 * @param uri the URI to check
+	 * @return true if the given URI is a RelaxNG grammar and false otherwise.
+	 */
+	public static boolean isRelaxNGUri(String uri) {
+		return isRelaxNGUriXMLSyntax(uri) || isRelaxNGUriCompactSyntax(uri);
+	}
+
+	/**
+	 * Returns true if the given URI is a RelaxNG grammar compact syntax and false
+	 * otherwise.
+	 * 
+	 * @param uri the URI to check
+	 * @return true if the given URI is a RelaxNG grammar compact syntax and false
+	 *         otherwise.
+	 */
+	public static boolean isRelaxNGUriCompactSyntax(String uri) {
+		return uri != null && uri.endsWith(RNC_EXTENSION);
 	}
 
 	/**
@@ -135,7 +210,6 @@ public class DOMUtils {
 			return DOMParser.getInstance().parse(IOUtils.convertStreamToString(new URL(documentURI).openStream()),
 					documentURI, resolverExtensionManager);
 		} catch (Exception e) {
-			LOGGER.log(Level.SEVERE, "Error while loading XML Schema '" + documentURI + "'.", e);
 			return null;
 		}
 	}
@@ -156,5 +230,27 @@ public class DOMUtils {
 		// to be more secure, completely disable DOCTYPE declaration:
 		factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
 		return factory;
+	}
+
+	public static DOMElement findFirstChildElementByTagName(DOMElement element, String tagName) {
+		for (DOMNode child : element.getChildren()) {
+			if (isDOMElement(child, tagName)) {
+				return (DOMElement) child;
+			}
+		}
+		return null;
+	}
+
+	public static boolean isDOMElement(DOMNode node, String tagName) {
+		return node != null && node.isElement() && tagName.equals(node.getLocalName());
+	}
+
+	public static InputSource createInputSource(DOMDocument document) {
+		String content = document.getText();
+		String uri = document.getDocumentURI();
+		InputSource inputSource = new InputSource();
+		inputSource.setCharacterStream(new StringReader(content));
+		inputSource.setSystemId(uri);
+		return inputSource;
 	}
 }

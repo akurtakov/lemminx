@@ -289,6 +289,17 @@ public abstract class DOMNode implements Node, DOMRange {
 		return null;
 	}
 
+	public static DOMText findTextAt(DOMNode node, int offset) {
+		if (node != null && node.hasChildNodes()) {
+			for (DOMNode child : node.getChildren()) {
+				if (child.isText() && isIncluded(child, offset)) {
+					return (DOMText) child;
+				}
+			}
+		}
+		return null;
+	}
+	
 	public static DOMNode findNodeOrAttrAt(DOMDocument document, int offset) {
 		DOMNode node = document.findNodeAt(offset);
 		if (node != null) {
@@ -739,14 +750,54 @@ public abstract class DOMNode implements Node, DOMRange {
 		return prev;
 	}
 
+	/**
+	 * Returns the orphan end element after the given offset which matches the given
+	 * tagName and null otherwise.
+	 * 
+	 * The following sample sample with tagName=foo will returns the <\foo> orphan
+	 * end element:
+	 * <p>
+	 * |
+	 * <\foo>
+	 * </p>
+	 * 
+	 * @param offset  the offset.
+	 * @param tagName the tag name.
+	 * 
+	 * @return the orphan end element after the given offset which matches the given
+	 *         tagName and null otherwise.
+	 */
 	public DOMElement getOrphanEndElement(int offset, String tagName) {
+		return getOrphanEndElement(offset, tagName, false);
+	}
+
+	/**
+	 * Returns the orphan end element after the given offset which matches the given
+	 * tagName and the first orphan end element otherwise and null otherwise.
+	 * 
+	 * The following sample sample with tagName=bar will returns the <\foo> orphan
+	 * end element:
+	 * <p>
+	 * |
+	 * <\foo>
+	 * </p>
+	 * 
+	 * @param offset    the offset.
+	 * @param tagName   the tag name.
+	 * @param anyOrphan true if any orphan should be returned and false otherwise.
+	 * 
+	 * @return the orphan end element after the given offset which matches the given
+	 *         tagName and the first orphan end element otherwise and null
+	 *         otherwise.
+	 */
+	public DOMElement getOrphanEndElement(int offset, String tagName, boolean anyOrphan) {
 		DOMNode next = getNextSibling();
 		if (next == null || !next.isElement()) {
 			return null;
 		}
 		// emp| </employe>
 		DOMElement nextElement = (DOMElement) next;
-		if (nextElement.isOrphanEndTagOf(tagName)) {
+		if ((anyOrphan && nextElement.isOrphanEndTag()) || nextElement.isOrphanEndTagOf(tagName)) {
 			return nextElement;
 		}
 		return null;

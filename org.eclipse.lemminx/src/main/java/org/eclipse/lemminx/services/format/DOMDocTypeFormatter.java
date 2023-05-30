@@ -31,9 +31,9 @@ import org.w3c.dom.Node;
  */
 public class DOMDocTypeFormatter {
 
-	private final XMLFormatterDocumentNew formatterDocument;
+	private final XMLFormatterDocument formatterDocument;
 
-	public DOMDocTypeFormatter(XMLFormatterDocumentNew formatterDocument) {
+	public DOMDocTypeFormatter(XMLFormatterDocument formatterDocument) {
 		this.formatterDocument = formatterDocument;
 	}
 
@@ -43,6 +43,8 @@ public class DOMDocTypeFormatter {
 		if (isDTD) {
 			formatDTD(docType, parentConstraints, start, end, edits);
 		} else {
+			replaceLeftSpacesWithIndentation(parentConstraints.getIndentLevel(), docType.getParentNode().getStart(),
+					docType.getStart(), true, edits);
 			List<DTDDeclParameter> parameters = docType.getParameters();
 			if (!parameters.isEmpty()) {
 				for (DTDDeclParameter parameter : parameters) {
@@ -85,6 +87,10 @@ public class DOMDocTypeFormatter {
 			int endDocType = internalSubset.getEnd() - 1;
 			String lineDelimiter = formatterDocument.getLineDelimiter();
 			replaceLeftSpacesWith(startDocType, endDocType, lineDelimiter, edits);
+			// Remove space between end brackets
+			// Exmaple Before: <!DOCTYPE person [...
+			// <!ENTITY AUTHOR \"John Doe\">]|>
+			removeLeftSpaces(internalSubset.getEnd(), docType.getEnd() - 1, edits);
 		}
 	}
 
@@ -108,8 +114,11 @@ public class DOMDocTypeFormatter {
 			default:
 				// unknown, so just leave alone for now but make sure to update
 				// available line width
-				int width = updateLineWidthWithLastLine(child, parentConstraints.getAvailableLineWidth());
-				parentConstraints.setAvailableLineWidth(width);
+				formatterDocument.format(child, parentConstraints, start, end, edits);
+				if (isMaxLineWidthSupported()){
+					int width = updateLineWidthWithLastLine(child, parentConstraints.getAvailableLineWidth());
+					parentConstraints.setAvailableLineWidth(width);
+				}
 			}
 		}
 	}
@@ -123,15 +132,36 @@ public class DOMDocTypeFormatter {
 		// 1) indent the DTD element, entity, notation declaration
 		// before formatting : [space][space]<!ELEMENT>
 		// after formatting : <!ELEMENT>
-		replaceLeftSpacesWithIndentation(parentConstraints.getIndentLevel(), nodeDecl.getParentNode().getStart(),
-				nodeDecl.getStart(), addLineSeparator, edits);
+		int parentNodeStart = nodeDecl.getParentNode().getStart();
+		int nodeDeclStart = nodeDecl.getStart();
+		int indentLevel = parentConstraints.getIndentLevel();
+		int preservedNewLines = getPreservedNewlines();
+		int currentNewLineCount = XMLFormatterDocument.getExistingNewLineCount(formatterDocument.getText(),
+				nodeDeclStart, formatterDocument.getLineDelimiter());
+		if (currentNewLineCount > preservedNewLines) {
+			// Reduce to number of new lines to the new line number specified by
+			// preservedNewLines setting
+			// Example: preservedNewLines = 1
+			// <a> \r\n
+			// \r\n
+			// \r\n --> remove this line, leaving one remaining new line
+			// </a>
+			replaceLeftSpacesWithIndentationWithMultiNewLines(indentLevel, parentNodeStart,
+					nodeDeclStart, preservedNewLines + 1, edits);
+		} else {
+			// Maintain the current number of new lines or add line separator where there is
+			// no new line present
+			int newLineCount = currentNewLineCount == 0 ? 1 : currentNewLineCount;
+			replaceLeftSpacesWithIndentationWithMultiNewLines(indentLevel, parentNodeStart, nodeDeclStart,
+					newLineCount, edits);
+		}
 
 		// 2 separate each parameters with one space
 		// before formatting : <!ELEMENT[space][space]note>
 		// after formatting : <!ELEMENT[space]note>
 		DTDAttlistDecl attlist = nodeDecl.isDTDAttListDecl() ? (DTDAttlistDecl) nodeDecl : null;
 		if (attlist != null) {
-			int indentLevel = nodeDecl.getOwnerDocument().isDTD() ? 1 : 2;
+			indentLevel = nodeDecl.getOwnerDocument().isDTD() ? 1 : 2;
 			List<DTDAttlistDecl> internalDecls = attlist.getInternalChildren();
 			if (internalDecls == null) {
 				int previousOffset = attlist.getStart();
@@ -186,7 +216,7 @@ public class DOMDocTypeFormatter {
 		} else {
 			List<DTDDeclParameter> parameters = nodeDecl.getParameters();
 			if (!parameters.isEmpty()) {
-				int previousOffset = nodeDecl.getStart();
+				int previousOffset = nodeDeclStart;
 				for (DTDDeclParameter parameter : parameters) {
 					// Normalize space at the start of parameter to a single space for non-ATTLIST,
 					// for example:
@@ -214,12 +244,26 @@ public class DOMDocTypeFormatter {
 		return formatterDocument.replaceLeftSpacesWithIndentation(indentLevel, from, to, addLineSeparator, edits);
 	}
 
+	private int replaceLeftSpacesWithIndentationWithMultiNewLines(int indentLevel, int from, int to, int newLineCount,
+			List<TextEdit> edits) {
+		return formatterDocument.replaceLeftSpacesWithIndentationWithMultiNewLines(indentLevel, from, to, newLineCount,
+				edits);
+	}
+
 	private void removeLeftSpaces(int from, int to, List<TextEdit> edits) {
 		formatterDocument.removeLeftSpaces(from, to, edits);
 	}
 
 	private EnforceQuoteStyle getEnforceQuoteStyle() {
 		return formatterDocument.getSharedSettings().getFormattingSettings().getEnforceQuoteStyle();
+	}
+
+	private int getPreservedNewlines() {
+		return formatterDocument.getSharedSettings().getFormattingSettings().getPreservedNewlines();
+	}
+
+	private boolean isMaxLineWidthSupported() {
+		return formatterDocument.isMaxLineWidthSupported();
 	}
 
 	private static int getDocTypeIdStart(DOMDocumentType docType) {

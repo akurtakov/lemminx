@@ -205,17 +205,17 @@ public class XMLSchemaDiagnosticsTest extends AbstractCacheBasedTest {
 				"</root>";
 		Diagnostic d = d(0, 1, 0, 5, XMLSchemaErrorCode.cvc_complex_type_2_4_b);
 		testDiagnosticsFor(xml, d);
-		testCodeActionsFor(xml, d, ca(d, te(1, 83, 1, 83, //
+		testCodeActionsFor(xml, d, ca(d, te(1, 83, 2, 0, //
 				"\r\n" + //
 						"\t<authors>\r\n" + //
 						"\t\t<author></author>\r\n" + //
 						"\t</authors>\r\n" + //
-						"\t<assistant></assistant>")),
-				ca(d, te(1, 83, 1, 83, //
+						"\t<assistant></assistant>\r\n")),
+				ca(d, te(1, 83, 2, 0, //
 						"\r\n" + //
 								"\t<authors>\r\n" + //
 								"\t\t<author></author>\r\n" + //
-								"\t</authors>")));
+								"\t</authors>\r\n")));
 	}
 
 	@Test
@@ -304,17 +304,20 @@ public class XMLSchemaDiagnosticsTest extends AbstractCacheBasedTest {
 				"</root>";
 		Diagnostic d = d(0, 1, 0, 5, XMLSchemaErrorCode.cvc_complex_type_2_4_b);
 		testDiagnosticsFor(xml, d);
-		testCodeActionsFor(xml, d, ca(d, te(1, 65, 1, 65, //
+		testCodeActionsFor(xml, d, ca(d, te(1, 65, 4, 0, //
 				"\r\n" + //
+						"\t<a></a>\r\n" + //
 						"\t<b></b>\r\n" + //
+						"\t<c></c>\r\n" + //
 						"\t<d age=\"\">\r\n" + //
 						"\t\t<d1></d1>\r\n" + //
 						"\t</d>\r\n" + //
-						"\t<e></e>")),
-				ca(d, te(1, 65, 1, 65, //
+						"\t<e></e>\r\n")),
+				ca(d, te(1, 65, 4, 0, //
 						"\r\n" + //
+								"\t<a></a>\r\n" + //
 								"\t<d age=\"\"></d>\r\n" + //
-								"\t<e></e>")));
+								"\t<e></e>\r\n")));
 	}
 
 	@Test
@@ -326,25 +329,21 @@ public class XMLSchemaDiagnosticsTest extends AbstractCacheBasedTest {
 		testCodeActionsFor(xml, d, ca(d, te(1, 82, 1, 82, //
 				"\r\n" + //
 						"\t<a>\r\n" + //
-						"\t\t<root>\r\n\t\t\r\n" + //
-						"\t\t\t<b>\r\n" + //
-						"\t\t\t</b>\r\n\t\t\r\n" + //
-						"\t\t\t<c>\r\n" + //
-						"\t\t\t</c>\r\n\t\t\r\n" + //
-						"\t\t\t<d age=\"\">\r\n" + //
-						"\t\t\t\t<d1></d1>\r\n" + //
-						"\t\t\t</d>\r\n\t\t\r\n" + //
-						"\t\t\t<e></e>\r\n" + //
-						"\t\t</root>\r\n" + //
-						"\t</a>\r\n")),
+						"\t</a>\r\n" + //
+						"\t<b>\r\n" + //
+						"\t</b>\r\n" + //
+						"\t<c>\r\n" + //
+						"\t</c>\r\n" + //
+						"\t<d age=\"\">\r\n" + //
+						"\t\t<d1></d1>\r\n" + //
+						"\t</d>\r\n" + //
+						"\t<e></e>\r\n")),
 				ca(d, te(1, 82, 1, 82, //
 						"\r\n" + //
 								"\t<a>\r\n" + //
-								"\t\t<root>\r\n\t\t\r\n" + //
-								"\t\t\t<d age=\"\"></d>\r\n\t\t\r\n" + //
-								"\t\t\t<e></e>\r\n" + //
-								"\t\t</root>\r\n" + //
-								"\t</a>\r\n")));
+								"\t</a>\r\n" + //
+								"\t<d age=\"\"></d>\r\n" + //
+								"\t<e></e>\r\n")));
 	}
 
 	@Test
@@ -508,6 +507,19 @@ public class XMLSchemaDiagnosticsTest extends AbstractCacheBasedTest {
 		testDiagnosticsFor(xml, //
 				d(1, 1, 1, 10, XMLSchemaErrorCode.cvc_datatype_valid_1_2_3),
 				d(1, 1, 1, 10, XMLSchemaErrorCode.cvc_type_3_1_3));
+	}
+
+	@Test
+	public void cvc_minLength() throws Exception {
+		// See issue https://github.com/redhat-developer/vscode-xml/issues/524
+		String xml = "<?xml version=\"1.0\"?>\r\n"
+				+ "<?xml-model href=\"src/test/resources/xsd/minLength.xsd\"?>\r\n"
+				+ "<Root>\r\n"
+				+ "    <Test Some_String=\"\" Some_Restricted_Value=\"\"/>\r\n"
+				+ "</Root>";
+		testDiagnosticsFor(xml, //
+				d(3, 47, 3, 49, XMLSchemaErrorCode.cvc_minlength_valid),
+				d(3, 47, 3, 49, XMLSchemaErrorCode.cvc_attribute_3));
 	}
 
 	@Test
@@ -1135,6 +1147,23 @@ public class XMLSchemaDiagnosticsTest extends AbstractCacheBasedTest {
 		Diagnostic diagnostic = d(3, 10, 21, XMLSchemaErrorCode.cvc_complex_type_2_3);
 		testDiagnosticsFor(xml, diagnostic);
 		XMLAssert.testCodeActionsFor(xml, diagnostic, ca(diagnostic, te(3, 10, 3, 21, "")));
+	}
+
+	@Test
+	public void cvc_complex_type_2_3_textAfterComment() throws BadLocationException {
+		// See https://github.com/eclipse/lemminx/issues/1495
+		String xml = "<?xml version='1.0' encoding='utf-8'?>\r\n"
+				+ "<project xmlns=\"http://maven.apache.org/POM/4.0.0\"\r\n"
+				+ "         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\r\n"
+				+ "         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd\">\r\n"
+				+ "    <modelVersion>4.0.0</modelVersion>\r\n"
+				+ "    <!-- Comment -->\r\n"
+				+ "    abcd efgh\r\n"
+				+ "     \r\n"
+				+ "</project>";
+		Diagnostic diagnostic = d(6, 4, 8, XMLSchemaErrorCode.cvc_complex_type_2_3);
+		testDiagnosticsWithCatalogFor(xml, diagnostic);
+		XMLAssert.testCodeActionsFor(xml, diagnostic, ca(diagnostic, te(6, 4, 6, 8, "")));
 	}
 
 	@Test

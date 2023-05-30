@@ -15,8 +15,10 @@ package org.eclipse.lemminx.extensions.dtd.contentmodel;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.xerces.impl.dtd.XMLElementDecl;
 import org.eclipse.lemminx.dom.DOMElement;
@@ -44,12 +46,17 @@ public class CMDTDElementDeclaration extends XMLElementDecl implements CMElement
 	}
 
 	@Override
-	public String getName() {
+	public String getLocalName() {
 		return super.name.localpart;
 	}
 
 	@Override
 	public String getNamespace() {
+		return null;
+	}
+
+	@Override
+	public String getPrefix(String namespaceURI) {
 		return null;
 	}
 
@@ -66,7 +73,7 @@ public class CMDTDElementDeclaration extends XMLElementDecl implements CMElement
 	public Collection<CMElementDeclaration> getElements() {
 		if (elements == null) {
 			elements = new ArrayList<>();
-			document.collectElementsDeclaration(getName(), elements);
+			document.collectElementsDeclaration(getLocalName(), elements);
 		}
 		return elements;
 	}
@@ -80,7 +87,7 @@ public class CMDTDElementDeclaration extends XMLElementDecl implements CMElement
 	@Override
 	public CMElementDeclaration findCMElement(String tag, String namespace) {
 		for (CMElementDeclaration cmElement : getElements()) {
-			if (cmElement.getName().equals(tag)) {
+			if (cmElement.getLocalName().equals(tag)) {
 				return cmElement;
 			}
 		}
@@ -88,9 +95,9 @@ public class CMDTDElementDeclaration extends XMLElementDecl implements CMElement
 	}
 
 	@Override
-	public CMAttributeDeclaration findCMAttribute(String attributeName) {
+	public CMAttributeDeclaration findCMAttribute(String attributeName, String namespace) {
 		for (CMAttributeDeclaration cmAttribute : getAttributes()) {
-			if (cmAttribute.getName().equals(attributeName)) {
+			if (cmAttribute.getLocalName().equals(attributeName)) {
 				return cmAttribute;
 			}
 		}
@@ -104,7 +111,7 @@ public class CMDTDElementDeclaration extends XMLElementDecl implements CMElement
 		}
 		Map<String, DTDElementInfo> hierarchiesMap = document.getHierarchiesMap();
 		if (hierarchiesMap != null) {
-			DTDElementInfo dtdElementInfo = hierarchiesMap.get(getName());
+			DTDElementInfo dtdElementInfo = hierarchiesMap.get(getLocalName());
 			documentation = dtdElementInfo.getComment();
 		}
 		return documentation;
@@ -113,7 +120,7 @@ public class CMDTDElementDeclaration extends XMLElementDecl implements CMElement
 	public String getDocumentation(String attrName) {
 		Map<String, DTDElementInfo> hierarchiesMap = document.getHierarchiesMap();
 		if (hierarchiesMap != null) {
-			DTDElementInfo dtdElementInfo = hierarchiesMap.get(getName());
+			DTDElementInfo dtdElementInfo = hierarchiesMap.get(getLocalName());
 			Map<String, DTDNodeInfo> attributesMap = dtdElementInfo.getAttributes();
 			DTDNodeInfo nodeInfo = attributesMap.get(attrName);
 			if (nodeInfo != null) {
@@ -126,6 +133,12 @@ public class CMDTDElementDeclaration extends XMLElementDecl implements CMElement
 	@Override
 	public boolean isEmpty() {
 		return super.type == XMLElementDecl.TYPE_EMPTY;
+	}
+
+	@Override
+	public boolean isNillable() {
+		// implement later, return false
+		return false;
 	}
 
 	@Override
@@ -158,8 +171,20 @@ public class CMDTDElementDeclaration extends XMLElementDecl implements CMElement
 	}
 
 	@Override
-	public boolean isOptional(String childElementName){
-		//implement later, return false
+	public boolean isOptional(String childElementName) {
+		// implement later, return false
 		return false;
+	}
+
+	@Override
+	public Set<CMElementDeclaration> getRequiredElements() {
+		Set<CMElementDeclaration> requiredElements = new LinkedHashSet<>();
+		for (CMElementDeclaration element : elements) {
+			// cannot be used, isOptional is not implemented
+			if (!isOptional(element.getLocalName())) {
+				requiredElements.add(element);
+			}
+		}
+		return requiredElements;
 	}
 }

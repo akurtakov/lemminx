@@ -19,7 +19,8 @@ import org.eclipse.lemminx.dom.DOMAttr;
 import org.eclipse.lemminx.extensions.xsi.XSISchemaModel;
 import org.eclipse.lemminx.extensions.xsi.settings.XSISchemaLocationSplit;
 import org.eclipse.lemminx.services.extensions.format.IFormatterParticipant;
-import org.eclipse.lemminx.services.format.XMLFormatterDocumentNew;
+import org.eclipse.lemminx.services.format.XMLFormatterDocument;
+import org.eclipse.lemminx.services.format.XMLFormattingConstraints;
 import org.eclipse.lemminx.settings.XMLFormattingOptions;
 import org.eclipse.lemminx.utils.StringUtils;
 import org.eclipse.lemminx.utils.XMLBuilder;
@@ -85,10 +86,12 @@ public class XSIFormatterParticipant implements IFormatterParticipant {
 			}
 			List<String> locations = getLocations(valueWithoutQuote);
 			String indent = "";
+			boolean insertSpaces = formattingOptions.isInsertSpaces();
+			int tabSize = formattingOptions.getTabSize();
 			for (int i = 0; i < locations.size(); i++) {
 				if (i % lineFeed == 0) {
 					if (i == 0) {
-						indent = getCurrentLineIndent(xml, formattingOptions);
+						indent = getCurrentLineIndent(xml, insertSpaces, tabSize);
 					} else {
 						xml.linefeed();
 						xml.append(indent);
@@ -126,9 +129,7 @@ public class XSIFormatterParticipant implements IFormatterParticipant {
 		return locations;
 	}
 
-	public String getCurrentLineIndent(XMLBuilder xml, XMLFormattingOptions formattingOptions) {
-		boolean insertSpaces = formattingOptions.isInsertSpaces();
-		int tabSize = formattingOptions.getTabSize();
+	public String getCurrentLineIndent(XMLBuilder xml, boolean insertSpaces, int tabSize) {
 		int nbChars = 0;
 		for (int i = xml.length() - 1; i >= 0; i--) {
 			if (xml.charAt(i) == '\r' || xml.charAt(i) == '\n') {
@@ -159,12 +160,16 @@ public class XSIFormatterParticipant implements IFormatterParticipant {
 	}
 
 	@Override
-	public boolean formatAttributeValue(DOMAttr attr, XMLFormatterDocumentNew formatterDocument, int indentLevel,
-			XMLFormattingOptions formattingOptions, List<TextEdit> edits) {
+	public boolean formatAttributeValue(DOMAttr attr, XMLFormatterDocument formatterDocument,
+			XMLFormattingConstraints parentConstraints, XMLFormattingOptions formattingOptions, List<TextEdit> edits) {
 
 		XSISchemaLocationSplit split = XSISchemaLocationSplit.getSplit(formattingOptions);
 
 		if (split == XSISchemaLocationSplit.none || !XSISchemaModel.isXSISchemaLocationAttr(attr.getName(), attr)) {
+			if (formatterDocument.isMaxLineWidthSupported() && attr.getValue() != null) {
+				parentConstraints
+						.setAvailableLineWidth(parentConstraints.getAvailableLineWidth() - attr.getValue().length());
+			}
 			return false;
 		}
 
@@ -197,20 +202,36 @@ public class XSIFormatterParticipant implements IFormatterParticipant {
 		int lineFeed = split == XSISchemaLocationSplit.onElement ? 1 : 2;
 		int locationNum = 1;
 		String attrValue = attr.getOriginalValue();
+		int lastAttrValueTermIndex = 0;
+		int availableLineWidth = parentConstraints.getAvailableLineWidth();
 
 		for (int i = firstContentOffset; i < attrValue.length(); i++) {
 			int from = formatterDocument.adjustOffsetWithLeftWhitespaces(attrValueStart, attrValueStart + i + 1);
 			if (Character.isWhitespace(attrValue.charAt(i)) && !Character.isWhitespace(attrValue.charAt(i + 1))
 					&& !StringUtils.isQuote(attrValue.charAt(from - attrValueStart))) {
+				availableLineWidth -= i - lastAttrValueTermIndex;
+				lastAttrValueTermIndex = i;
+				if (availableLineWidth < 0 && formatterDocument.isMaxLineWidthSupported()
+						&& !formattingOptions.isSplitAttributes()) {
+					indentSpaceOffset = (attrValueStart + 1) - attr.getNodeAttrName().getStart()
+							+ (parentConstraints.getIndentLevel() + 1) * tabSize;
+				}
+				int attrValuelength = attrValueStart - indentSpaceOffset + attr.getValue().length();
 				// Insert newline and indent where required based on setting
 				if (locationNum % lineFeed == 0) {
 					formatterDocument.replaceLeftSpacesWithIndentationWithOffsetSpaces(indentSpaceOffset,
 							attrValueStart, attrValueStart + i + 1, true, edits);
+					availableLineWidth = formatterDocument.getMaxLineWidth() - attrValuelength;
 				} else {
 					formatterDocument.replaceLeftSpacesWithOneSpace(indentSpaceOffset, attrValueStart + i + 1, edits);
+					availableLineWidth = availableLineWidth - attrValuelength;
 				}
 				locationNum++;
 			}
+		}
+		if (formatterDocument.isMaxLineWidthSupported() && attr.getValue() != null) {
+			parentConstraints
+					.setAvailableLineWidth(availableLineWidth);
 		}
 		return true;
 	}

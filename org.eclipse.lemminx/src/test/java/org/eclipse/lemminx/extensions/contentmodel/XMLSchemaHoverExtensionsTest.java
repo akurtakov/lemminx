@@ -20,6 +20,7 @@ import org.apache.xerces.util.URI.MalformedURIException;
 import org.eclipse.lemminx.AbstractCacheBasedTest;
 import org.eclipse.lemminx.XMLAssert;
 import org.eclipse.lemminx.commons.BadLocationException;
+import org.eclipse.lemminx.dom.DOMAttr;
 import org.eclipse.lemminx.dom.DOMDocument;
 import org.eclipse.lemminx.dom.DOMElement;
 import org.eclipse.lemminx.dom.DOMNode;
@@ -28,7 +29,7 @@ import org.eclipse.lemminx.dom.LineIndentInfo;
 import org.eclipse.lemminx.extensions.contentmodel.participants.ContentModelHoverParticipant;
 import org.eclipse.lemminx.extensions.xsi.XSISchemaModel;
 import org.eclipse.lemminx.services.XMLLanguageService;
-import org.eclipse.lemminx.services.extensions.IHoverRequest;
+import org.eclipse.lemminx.services.extensions.hover.IHoverRequest;
 import org.eclipse.lemminx.settings.SharedSettings;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
@@ -385,6 +386,11 @@ public class XMLSchemaHoverExtensionsTest extends AbstractCacheBasedTest {
 			}
 
 			@Override
+			public DOMAttr getCurrentAttribute() {
+				return null;
+			}
+
+			@Override
 			public LineIndentInfo getLineIndentInfo() throws BadLocationException {
 				return null;
 			}
@@ -415,7 +421,8 @@ public class XMLSchemaHoverExtensionsTest extends AbstractCacheBasedTest {
 			}
 
 		};
-		assertNull(hoverParticipant.onText(hoverRequest));
+		assertNull(hoverParticipant.onText(hoverRequest, () -> {
+		}));
 	}
 
 	private static void assertHover(String value, String expectedHoverLabel, Range expectedHoverRange)

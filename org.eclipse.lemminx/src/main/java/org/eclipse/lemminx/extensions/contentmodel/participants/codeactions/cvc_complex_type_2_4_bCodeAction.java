@@ -13,16 +13,12 @@
 package org.eclipse.lemminx.extensions.contentmodel.participants.codeactions;
 
 import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
 
 import org.eclipse.lemminx.commons.BadLocationException;
 import org.eclipse.lemminx.commons.CodeActionFactory;
 import org.eclipse.lemminx.dom.DOMDocument;
 import org.eclipse.lemminx.dom.DOMElement;
 import org.eclipse.lemminx.dom.DOMNode;
-import org.eclipse.lemminx.extensions.contentmodel.model.CMDocument;
-import org.eclipse.lemminx.extensions.contentmodel.model.CMElementDeclaration;
 import org.eclipse.lemminx.extensions.contentmodel.model.ContentModelManager;
 import org.eclipse.lemminx.extensions.contentmodel.utils.XMLGenerator;
 import org.eclipse.lemminx.services.extensions.codeaction.ICodeActionParticipant;
@@ -65,54 +61,22 @@ public class cvc_complex_type_2_4_bCodeAction implements ICodeActionParticipant 
 			}
 
 			DOMElement element = (DOMElement) node;
-			int elementOffset = element.getStartTagCloseOffset() + 1;
-			Position childElementPosition = document.positionAt(elementOffset);
+			Position childElementPositionStartTag = document.positionAt(element.getStartTagCloseOffset() + 1);
+			Position childElementPositionEndTag = document.positionAt(element.getEndTagOpenOffset());
 
+			Range targetRange = new Range(childElementPositionStartTag, childElementPositionEndTag);
 			XMLGenerator generator = request.getXMLGenerator();
-			ContentModelManager contentModelManager = request.getComponent(ContentModelManager.class);
 
-			// get list of all existing elements
-			Set<String> existingElements = new TreeSet<String>();
-			List<DOMNode> children = element.getChildren();
-			for (DOMNode child : children) {
-				if (child.isElement()) {
-					existingElements.add(child.getNodeName());
-				}
-			}
+			String insertStrAll = generator.generateMissingElements(request.getComponent(ContentModelManager.class), element, false);
+			String insertStrRequired = generator.generateMissingElements(request.getComponent(ContentModelManager.class), element, true);
 
-			StringBuilder insertTextAll = new StringBuilder();
-			StringBuilder insertTextRequired = new StringBuilder();
-
-			for (CMDocument cmDocument : contentModelManager.findCMDocument(element)) {
-				CMElementDeclaration matchesCMElement = cmDocument.findCMElement(element);
-				if (matchesCMElement != null) {
-					insertTextAll
-							.append(generator.generate(matchesCMElement, null, true, true, existingElements, false));
-					insertTextRequired
-							.append(generator.generate(matchesCMElement, null, true, true, existingElements, true));
-				}
-			}
-
-			// When the parent start and end tag is on the same line: add new line, and
-			// indent if needed
-			if (document.positionAt(element.getStartTagCloseOffset()).getLine() == document
-					.positionAt(element.getEndTagOpenOffset()).getLine()) {
-				insertTextAll.append(generator.getLineDelimiter());
-				insertTextAll.append(generator.getWhitespacesIndent());
-				insertTextRequired.append(generator.getLineDelimiter());
-				insertTextRequired.append(generator.getWhitespacesIndent());
-			}
-
-			String insertStrAll = insertTextAll.toString();
-			String insertStrRequired = insertTextRequired.toString();
-
-			CodeAction insertAllExpectedElement = CodeActionFactory.insert("Insert all expected elements",
-					childElementPosition, insertStrAll, document.getTextDocument(), diagnostic);
+			CodeAction insertAllExpectedElement = CodeActionFactory.replace("Insert all expected elements",
+					targetRange, insertStrAll, document.getTextDocument(), diagnostic);
 
 			codeActions.add(insertAllExpectedElement);
 
-			CodeAction insertRequriedExpectedElement = CodeActionFactory.insert("Insert only required elements",
-					childElementPosition, insertStrRequired, document.getTextDocument(), diagnostic);
+			CodeAction insertRequriedExpectedElement = CodeActionFactory.replace("Insert only required elements",
+					targetRange, insertStrRequired, document.getTextDocument(), diagnostic);
 
 			codeActions.add(insertRequriedExpectedElement);
 

@@ -58,6 +58,9 @@ import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CodeActionParams;
 import org.eclipse.lsp4j.CodeLens;
 import org.eclipse.lsp4j.CodeLensParams;
+import org.eclipse.lsp4j.ColorInformation;
+import org.eclipse.lsp4j.ColorPresentation;
+import org.eclipse.lsp4j.ColorPresentationParams;
 import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionList;
@@ -69,6 +72,7 @@ import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.DidSaveTextDocumentParams;
+import org.eclipse.lsp4j.DocumentColorParams;
 import org.eclipse.lsp4j.DocumentFormattingParams;
 import org.eclipse.lsp4j.DocumentHighlight;
 import org.eclipse.lsp4j.DocumentHighlightParams;
@@ -85,7 +89,11 @@ import org.eclipse.lsp4j.LinkedEditingRangeParams;
 import org.eclipse.lsp4j.LinkedEditingRanges;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.LocationLink;
+import org.eclipse.lsp4j.PrepareRenameDefaultBehavior;
+import org.eclipse.lsp4j.PrepareRenameParams;
+import org.eclipse.lsp4j.PrepareRenameResult;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
+import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.ReferenceParams;
 import org.eclipse.lsp4j.RenameParams;
 import org.eclipse.lsp4j.SelectionRange;
@@ -99,6 +107,7 @@ import org.eclipse.lsp4j.TypeDefinitionParams;
 import org.eclipse.lsp4j.WorkspaceEdit;
 import org.eclipse.lsp4j.jsonrpc.CancelChecker;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
+import org.eclipse.lsp4j.jsonrpc.messages.Either3;
 import org.eclipse.lsp4j.jsonrpc.validation.NonNull;
 import org.eclipse.lsp4j.services.TextDocumentService;
 
@@ -132,9 +141,20 @@ public class XMLTextDocumentService implements TextDocumentService {
 	/**
 	 * Save context.
 	 */
-	class SaveContext extends AbstractSaveContext {
+	public class SaveContext extends AbstractSaveContext {
 
 		private final Collection<ModelTextDocument<DOMDocument>> documentsToValidate;
+
+		private boolean isRefreshCodeLenses;
+
+		public boolean isRefreshCodeLenses() {
+			return isRefreshCodeLenses;
+		}
+
+		public void setRefreshCodeLenses(boolean isRefreshCodeLenses) {
+			this.isRefreshCodeLenses = isRefreshCodeLenses;
+			return;
+		}
 
 		public SaveContext(Object settings) {
 			super(settings);
@@ -335,9 +355,26 @@ public class XMLTextDocumentService implements TextDocumentService {
 	}
 
 	@Override
+	public CompletableFuture<Either3<Range, PrepareRenameResult, PrepareRenameDefaultBehavior>> prepareRename(PrepareRenameParams params) {
+		return computeDOMAsync(params.getTextDocument(), (xmlDocument, cancelChecker) -> {
+			Either<Range, PrepareRenameResult> either = getXMLLanguageService().prepareRename(xmlDocument, params.getPosition(), cancelChecker);
+			if (either != null) {
+				if (either.isLeft()) {
+					return Either3.forFirst((Range) either.get());
+				} else {
+					return Either3.forSecond((PrepareRenameResult) either.get());
+				}
+			} else {
+				return Either3.forThird(new PrepareRenameDefaultBehavior());
+			}
+		});
+	}
+
+	@Override
 	public CompletableFuture<WorkspaceEdit> rename(RenameParams params) {
 		return computeDOMAsync(params.getTextDocument(), (xmlDocument, cancelChecker) -> {
-			return getXMLLanguageService().doRename(xmlDocument, params.getPosition(), params.getNewName());
+			return getXMLLanguageService().doRename(xmlDocument, params.getPosition(), params.getNewName(),
+					cancelChecker);
 		});
 	}
 
@@ -543,6 +580,20 @@ public class XMLTextDocumentService implements TextDocumentService {
 	}
 
 	@Override
+	public CompletableFuture<List<ColorInformation>> documentColor(DocumentColorParams params) {
+		return computeDOMAsync(params.getTextDocument(), (xmlDocument, cancelChecker) -> {
+			return getXMLLanguageService().findDocumentColors(xmlDocument, cancelChecker);
+		});
+	}
+
+	@Override
+	public CompletableFuture<List<ColorPresentation>> colorPresentation(ColorPresentationParams params) {
+		return computeDOMAsync(params.getTextDocument(), (xmlDocument, cancelChecker) -> {
+			return getXMLLanguageService().getColorPresentations(xmlDocument, params, cancelChecker);
+		});
+	}
+
+	@Override
 	public void didSave(DidSaveTextDocumentParams params) {
 		computeAsync((monitor) -> {
 			// A document was saved, collect documents to revalidate
@@ -588,6 +639,9 @@ public class XMLTextDocumentService implements TextDocumentService {
 	void doSave(SaveContext context) {
 		getXMLLanguageService().doSave(context);
 		context.triggerValidationIfNeeded();
+		if (context.isRefreshCodeLenses()) {
+			xmlLanguageServer.getLanguageClient().refreshCodeLenses();
+		}
 	}
 
 	private void triggerValidationFor(Collection<ModelTextDocument<DOMDocument>> documents) {

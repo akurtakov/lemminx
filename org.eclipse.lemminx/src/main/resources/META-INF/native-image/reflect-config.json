@@ -144,6 +144,14 @@
 		}]
 	},
 	{
+		"name": "org.eclipse.lemminx.commons.config.ConfigurationItemEdit",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
 		"name": "org.eclipse.lemminx.commons.ParentProcessWatcher$ProcessLanguageServer",
 		"allDeclaredMethods": true
 	},
@@ -180,6 +188,14 @@
 	{
 		"name": "org.eclipse.lemminx.customservice.XMLLanguageServerAPI",
 		"allDeclaredMethods": true
+	},
+	{
+		"name": "org.eclipse.lemminx.extensions.contentmodel.commands.SurroundWithCommand$SurroundWithResponse",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
 	},
 	{
 		"name": "org.eclipse.lemminx.extensions.contentmodel.settings.ContentModelSettings",
@@ -236,6 +252,10 @@
             "name": "<init>",
             "parameterTypes": []
         }]
+    },
+    {
+        "name": "org.eclipse.lemminx.extensions.xerces.xmlmodel.XMLModelValidatorFactory",
+        "allDeclaredMethods": true
     },
 	{
 		"name": "org.eclipse.lemminx.utils.platform.Memory",
@@ -398,6 +418,54 @@
 		}]
 	},
 	{
+		"name": "org.eclipse.lemminx.extensions.references.settings.XMLReferenceExpression",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
+		"name": "org.eclipse.lemminx.extensions.references.settings.XMLReferences",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
+		"name": "org.eclipse.lemminx.extensions.references.settings.XMLReferencesSettings",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
+		"name": "org.eclipse.lemminx.extensions.colors.settings.XMLColorExpression",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
+		"name": "org.eclipse.lemminx.extensions.colors.settings.XMLColors",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
+		"name": "org.eclipse.lemminx.extensions.colors.settings.XMLColorsSettings",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
 		"name": "org.eclipse.lemminx.settings.QuoteStyle",
 		"allDeclaredFields": true
 	},
@@ -551,6 +619,30 @@
 	},
 	{
 		"name": "org.eclipse.lsp4j.CodeLensWorkspaceCapabilities",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
+		"name": "org.eclipse.lsp4j.Color",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
+		"name": "org.eclipse.lsp4j.ColorPresentation",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
+		"name": "org.eclipse.lsp4j.ColorPresentationParams",
 		"allDeclaredFields": true,
 		"methods": [{
 			"name": "<init>",
@@ -1054,6 +1146,38 @@
 		}]
 	},
 	{
+		"name": "org.eclipse.lsp4j.ColorInformation",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
+		"name": "org.eclipse.lsp4j.ColorProviderCapabilities",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
+		"name": "org.eclipse.lsp4j.ColorProviderOptions",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
+		"name": "org.eclipse.lsp4j.DocumentColorParams",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
 		"name": "org.eclipse.lsp4j.DocumentOnTypeFormattingOptions",
 		"allDeclaredFields": true,
 		"methods": [{
@@ -1402,8 +1526,31 @@
 		}]
 	},
 	{
+		"name": "org.eclipse.lsp4j.NotebookDocumentClientCapabilities",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
+		"name": "org.eclipse.lsp4j.NotebookDocumentSyncClientCapabilities",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
 		"name": "org.eclipse.lsp4j.OnTypeFormattingCapabilities",
 		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
+		"name": "org.eclipse.lsp4j.adapters.DocumentDiagnosticReportTypeAdapter",
 		"methods": [{
 			"name": "<init>",
 			"parameterTypes": []
@@ -1543,6 +1690,34 @@
 		"methods": [{
 			"name": "<init>",
 			"parameterTypes": []
+		}]
+	},
+	{
+		"name": "org.eclipse.lsp4j.PrepareRenameParams",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
+		"name": "org.eclipse.lsp4j.PrepareRenameResult",
+		"allDeclaredFields": true,
+		"methods": [{
+			"name": "<init>",
+			"parameterTypes": []
+		}]
+	},
+	{
+		"name": "org.eclipse.lsp4j.PrepareSupportDefaultBehavior",
+		"fields": [{
+			"name": "value"
+		}]
+	},
+	{
+		"name": "org.eclipse.lsp4j.PrepareRenameDefaultBehavior",
+		"fields": [{
+			"name": "defaultBehavior"
 		}]
 	},
 	{

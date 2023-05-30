@@ -12,7 +12,7 @@
 package org.eclipse.lemminx.services.extensions;
 
 /**
- * Definition request API.
+ * Rename request API.
  *
  */
 public interface IRenameRequest extends IPositionRequest {

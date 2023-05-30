@@ -33,6 +33,7 @@ import org.eclipse.lemminx.utils.StringUtils;
 import org.eclipse.lemminx.utils.XMLPositionUtility;
 import org.eclipse.lsp4j.CodeLens;
 import org.eclipse.lsp4j.Command;
+import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextDocumentEdit;
 import org.eclipse.lsp4j.jsonrpc.CancelChecker;
@@ -91,7 +92,14 @@ public class ContentModelCodeLensParticipant implements ICodeLensParticipant {
 		// The DOM document is bound with a schema/grammar, display the referenced
 		// grammars as Codelens.
 		boolean canSupportOpenUri = canSupportOpenUri(request);
-		Range range = XMLPositionUtility.createRange((DOMRange) document.getFirstChild());
+		Range range;
+		// If the grammar is bound using a file association, then the file could be empty
+		if (document.getFirstChild() == null) {
+			range = new Range();
+			range.setStart(new Position(0, 0));
+		} else {
+			range = XMLPositionUtility.createRange((DOMRange) document.getFirstChild());
+		}
 		range.setEnd(range.getStart());
 		Set<ReferencedGrammarInfo> referencedGrammarInfos = contentModelManager.getReferencedGrammarInfos(document);
 		for (ReferencedGrammarInfo info : referencedGrammarInfos) {
@@ -138,7 +146,12 @@ public class ContentModelCodeLensParticipant implements ICodeLensParticipant {
 			return;
 		}
 		String documentURI = document.getDocumentURI();
-		Range range = XMLPositionUtility.selectRootStartTag(document);
+		Range range;
+		if (document.getDocumentElement() != null) {
+			range = XMLPositionUtility.selectRootStartTag(document);
+		} else {
+			range = XMLPositionUtility.createRange(0, 0, document);
+		}
 
 		lenses.add(createAssociateLens(documentURI, "Bind to grammar/schema...", range));
 	}
@@ -147,8 +160,8 @@ public class ContentModelCodeLensParticipant implements ICodeLensParticipant {
 		if (!request.isSupportedByClient(CodeLensKind.Association)) {
 			return false;
 		}
-		String uri = request.getDocument().getDocumentURI();
-		return !DOMUtils.isXSD(uri) && !DOMUtils.isDTD(uri);
+		DOMDocument document = request.getDocument();
+		return !DOMUtils.isXSD(document) && !DOMUtils.isDTD(document.getDocumentURI()) && !DOMUtils.isRelaxNG(document);
 	}
 
 	private static CodeLens createAssociateLens(String documentURI, String title, Range range) {

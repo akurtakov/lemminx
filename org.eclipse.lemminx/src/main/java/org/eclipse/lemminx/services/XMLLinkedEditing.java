@@ -11,6 +11,7 @@
 *******************************************************************************/
 package org.eclipse.lemminx.services;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
@@ -20,6 +21,9 @@ import org.eclipse.lemminx.commons.BadLocationException;
 import org.eclipse.lemminx.dom.DOMDocument;
 import org.eclipse.lemminx.dom.DOMElement;
 import org.eclipse.lemminx.dom.DOMNode;
+import org.eclipse.lemminx.services.extensions.ILinkedEditingRangesParticipant;
+import org.eclipse.lemminx.services.extensions.ILinkedEditingRangesRequest;
+import org.eclipse.lemminx.services.extensions.XMLExtensionsRegistry;
 import org.eclipse.lemminx.utils.XMLPositionUtility;
 import org.eclipse.lsp4j.LinkedEditingRanges;
 import org.eclipse.lsp4j.Position;
@@ -32,18 +36,16 @@ import org.eclipse.lsp4j.jsonrpc.CancelChecker;
  */
 class XMLLinkedEditing {
 
+	private static final String WORD_PATTERN = "[^\\s>]+";
+
 	private static Logger LOGGER = Logger.getLogger(XMLLinkedEditing.class.getName());
 
-	// Full XML Element name pattern
-	public static final String XML_ELEMENT_WORD_PATTERN =
-			"[:A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6" //$NON-NLS-1$
-			+ "\\u00F8-\\u02ff\\u0370-\\u037d\\u037f-\\u1fff\\u200c\\u200d\\u2070-\\u218f" //$NON-NLS-1$
-			+ "\\u2c00-\\u2fef\\u3001-\\udfff\\uf900-\\ufdcf\\ufdf0-\\ufffd\\u10000-\\uEFFFF]" //$NON-NLS-1$
-			+ "[:A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6" //$NON-NLS-1$
-			+ "\\u00F8-\\u02ff\\u0370-\\u037d\\u037f-\\u1fff\\u200c\\u200d\\u2070-\\u218f" //$NON-NLS-1$
-			+ "\\u2c00-\\u2fef\\u3001-\\udfff\\uf900-\\ufdcf\\ufdf0-\\ufffd\\u10000-\\uEFFFF\\-\\.0-9" //$NON-NLS-1$
-			+ "\\u00b7\\u0300-\\u036f\\u203f-\\u2040]*"; //$NON-NLS-1$
-	
+	private final XMLExtensionsRegistry extensionsRegistry;
+
+	public XMLLinkedEditing(XMLExtensionsRegistry extensionsRegistry) {
+		this.extensionsRegistry = extensionsRegistry;
+	}
+
 	/**
 	 * Returns the linked editing ranges for the given <code>xmlDocument</code> at
 	 * the given <code>position</code> and null otherwise.
@@ -58,25 +60,45 @@ class XMLLinkedEditing {
 			CancelChecker cancelChecker) {
 		try {
 			cancelChecker.checkCanceled();
-			
-			int offset = document.offsetAt(position);
-			DOMNode node = document.findNodeAt(offset);
-			if (node == null || !node.isElement()) {
-				return null;
-			}
-			DOMElement element = (DOMElement) node;
-			if (element.isOrphanEndTag() || !element.hasEndTag()) {
+
+			ILinkedEditingRangesRequest request = new LinkedEditingRangesRequest(document, position,
+					extensionsRegistry);
+			DOMNode node = request.getNode();
+			if (node == null) {
 				return null;
 			}
 
-			if (element.isInStartTag(offset) || element.isInEndTag(offset, true)) {
-				List<Range> ranges = Arrays.asList(XMLPositionUtility.selectStartTagName(element),
-						XMLPositionUtility.selectEndTagName(element));
-				
-				cancelChecker.checkCanceled();
-				
-				return new LinkedEditingRanges(ranges, XML_ELEMENT_WORD_PATTERN);
+			final List<Range> ranges = new ArrayList<>();
+			for (ILinkedEditingRangesParticipant participant : extensionsRegistry
+					.getLinkedEditingRangesParticipants()) {
+				try {
+					participant.findLinkedEditingRanges(request, ranges, cancelChecker);
+				} catch (Exception e) {
+					LOGGER.log(Level.SEVERE,
+							"Error while processing linked editing ranges for the participant '"
+									+ participant.getClass().getName() + "'.",
+							e);
+				}
 			}
+
+			if (node.isElement()) {
+				DOMElement element = (DOMElement) node;
+				if (!(element.isOrphanEndTag() || !element.hasEndTag())) {
+					int offset = request.getOffset();
+					if (element.isInStartTag(offset) || element.isInEndTag(offset, true)) {
+						ranges.addAll(Arrays.asList(XMLPositionUtility.selectStartTagName(element),
+								XMLPositionUtility.selectEndTagName(element)));
+
+					}
+				}
+			}
+			cancelChecker.checkCanceled();
+			// Word pattern is defined here to have less restriction. Without this pattern
+			// when you try to rename content which contains '.' the linked editing range
+			// fails.
+			// Ex : <foo.bar></foo.bar> fails without the word pattern which allows any
+			// characters except spaces.
+			return !ranges.isEmpty() ? new LinkedEditingRanges(ranges, WORD_PATTERN) : null;
 		} catch (BadLocationException e) {
 			LOGGER.log(Level.SEVERE, "In XMLLinkedEditing, position error", e);
 		}

@@ -27,6 +27,7 @@ import org.eclipse.lemminx.extensions.contentmodel.settings.XMLValidationRootSet
 import org.eclipse.lemminx.extensions.contentmodel.settings.XMLValidationSettings;
 import org.eclipse.lemminx.services.extensions.XMLExtensionsRegistry;
 import org.eclipse.lemminx.services.extensions.diagnostics.DiagnosticsResult;
+import org.eclipse.lemminx.services.format.TextEditUtils;
 import org.eclipse.lemminx.settings.SharedSettings;
 import org.eclipse.lemminx.settings.XMLCodeLensSettings;
 import org.eclipse.lemminx.settings.XMLCompletionSettings;
@@ -36,6 +37,9 @@ import org.eclipse.lemminx.utils.XMLPositionUtility;
 import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CodeActionContext;
 import org.eclipse.lsp4j.CodeLens;
+import org.eclipse.lsp4j.ColorInformation;
+import org.eclipse.lsp4j.ColorPresentation;
+import org.eclipse.lsp4j.ColorPresentationParams;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionList;
 import org.eclipse.lsp4j.Diagnostic;
@@ -48,6 +52,7 @@ import org.eclipse.lsp4j.LinkedEditingRanges;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.LocationLink;
 import org.eclipse.lsp4j.Position;
+import org.eclipse.lsp4j.PrepareRenameResult;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.ReferenceContext;
@@ -56,6 +61,7 @@ import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.WorkspaceEdit;
 import org.eclipse.lsp4j.jsonrpc.CancelChecker;
+import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
 /**
  * XML Language service.
@@ -84,9 +90,11 @@ public class XMLLanguageService extends XMLExtensionsRegistry implements IXMLFul
 	private final XMLReference reference;
 	private final XMLCodeLens codelens;
 	private final XMLCodeActions codeActions;
+	private final XMLPrepareRename prepareRename;
 	private final XMLRename rename;
 	private final XMLSelectionRanges selectionRanges;
 	private final XMLLinkedEditing linkedEditing;
+	private final XMLDocumentColor documentColor;
 
 	public XMLLanguageService() {
 		this.formatter = new XMLFormatter(this);
@@ -97,21 +105,30 @@ public class XMLLanguageService extends XMLExtensionsRegistry implements IXMLFul
 		this.diagnostics = new XMLDiagnostics(this);
 		this.foldings = new XMLFoldings(this);
 		this.documentLink = new XMLDocumentLink(this);
+		this.documentColor = new XMLDocumentColor(this);
 		this.definition = new XMLDefinition(this);
 		this.typeDefinition = new XMLTypeDefinition(this);
 		this.reference = new XMLReference(this);
 		this.codelens = new XMLCodeLens(this);
 		this.codeActions = new XMLCodeActions(this);
+		this.prepareRename = new XMLPrepareRename(this);
 		this.rename = new XMLRename(this);
 		this.selectionRanges = new XMLSelectionRanges();
-		this.linkedEditing = new XMLLinkedEditing();
+		this.linkedEditing = new XMLLinkedEditing(this);
 	}
 
 	@Override
 	public String formatFull(String text, String uri, SharedSettings sharedSettings, CancelChecker cancelChecker) {
 		DOMDocument xmlDocument = DOMParser.getInstance().parse(new TextDocument(text, uri), null);
 		List<? extends TextEdit> edits = this.format(xmlDocument, null, sharedSettings);
-		return edits.isEmpty() ? null : edits.get(0).getNewText();
+		try {
+			return TextEditUtils.applyEdits(xmlDocument.getTextDocument(), edits);
+		} catch (Exception e) {
+			if (edits.size() == 1) {
+				return edits.get(0).getNewText();
+			}
+			return text;
+		}
 	}
 
 	public List<? extends TextEdit> format(DOMDocument xmlDocument, Range range, SharedSettings sharedSettings) {
@@ -219,12 +236,27 @@ public class XMLLanguageService extends XMLExtensionsRegistry implements IXMLFul
 		return selectionRanges.getSelectionRanges(xmlDocument, positions, cancelChecker);
 	}
 
-	public WorkspaceEdit doRename(DOMDocument xmlDocument, Position position, String newText) {
-		return rename.doRename(xmlDocument, position, newText);
+	public Either<Range, PrepareRenameResult> prepareRename(DOMDocument xmlDocument, Position position,
+			CancelChecker cancelChecker) {
+		return prepareRename.prepareRename(xmlDocument, position, cancelChecker);
+	}
+
+	public WorkspaceEdit doRename(DOMDocument xmlDocument, Position position, String newText,
+			CancelChecker cancelChecker) {
+		return rename.doRename(xmlDocument, position, newText, cancelChecker);
 	}
 
 	public List<DocumentLink> findDocumentLinks(DOMDocument document) {
 		return documentLink.findDocumentLinks(document);
+	}
+
+	public List<ColorInformation> findDocumentColors(DOMDocument xmlDocument, CancelChecker cancelChecker) {
+		return documentColor.findDocumentColors(xmlDocument, cancelChecker);
+	}
+
+	public List<ColorPresentation> getColorPresentations(DOMDocument xmlDocument, ColorPresentationParams params,
+			CancelChecker cancelChecker) {
+		return documentColor.getColorPresentations(xmlDocument, params, cancelChecker);
 	}
 
 	public List<? extends LocationLink> findDefinition(DOMDocument xmlDocument, Position position,

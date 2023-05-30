@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
+import org.eclipse.lemminx.dom.DOMAttr;
 import org.eclipse.lemminx.dom.DOMElement;
 import org.eclipse.lemminx.services.extensions.ISharedSettingsRequest;
 
@@ -29,11 +30,11 @@ public interface CMElementDeclaration {
 			.unmodifiableCollection(Arrays.asList());
 
 	/**
-	 * Returns the declared element name.
+	 * Returns the declared element local name.
 	 * 
-	 * @return the declared element name.
+	 * @return the declared element local name.
 	 */
-	String getName();
+	String getLocalName();
 
 	/**
 	 * Returns the target namespace and null otherwise.
@@ -43,12 +44,20 @@ public interface CMElementDeclaration {
 	String getNamespace();
 
 	/**
+	 * Returns the xmlns prefix from the given namespace URI and null otherwise.
+	 *
+	 * @param namespaceURI the namespace
+	 * @return the xmlns prefix from the given namespace URI and null otherwise.
+	 */
+	String getPrefix(String namespaceURI);
+
+	/**
 	 * Returns the declared element name with the given prefix.
 	 * 
 	 * @return the declared element name with the given prefix.
 	 */
 	default String getName(String prefix) {
-		String name = getName();
+		String name = getLocalName();
 		if (prefix == null || prefix.isEmpty()) {
 			return name;
 		}
@@ -94,10 +103,21 @@ public interface CMElementDeclaration {
 	/**
 	 * Returns the declared attribute which match the given name and null otherwise.
 	 * 
-	 * @param attributeName
+	 * @param attribute the DOM attribute
 	 * @return the declared attribute which match the given name and null otherwise.
 	 */
-	CMAttributeDeclaration findCMAttribute(String attributeName);
+	default CMAttributeDeclaration findCMAttribute(DOMAttr attr) {
+		return findCMAttribute(attr.getLocalName(), attr.getNamespaceURI());
+	}
+
+	/**
+	 * Returns the declared attribute which match the given name and null otherwise.
+	 * 
+	 * @param attributeName the attribute name.
+	 * @param namespace     the attribute namespace and null otherwise.
+	 * @return the declared attribute which match the given name and null otherwise.
+	 */
+	CMAttributeDeclaration findCMAttribute(String attributeName, String namespace);
 
 	/**
 	 * Returns formatted documentation of the declared element, according to
@@ -117,6 +137,13 @@ public interface CMElementDeclaration {
 	 *         and false otherwise.
 	 */
 	boolean isEmpty();
+
+	/**
+	 * Returns true if the element can have an explicit null value assigned to it.
+	 * 
+	 * @return true if the element can have an explicit null value assigned to it.
+	 */
+	boolean isNillable();
 
 	/**
 	 * Return the enumeration values.
@@ -167,4 +194,12 @@ public interface CMElementDeclaration {
 	 */
 	boolean isOptional(String childElementName);
 
+	/**
+	 * Returns a list of required/non-optional child elements of the current
+	 * element.
+	 * 
+	 * @return a list of required/non-optional child elements of the current
+	 *         element.
+	 */
+	Collection<CMElementDeclaration> getRequiredElements();
 }

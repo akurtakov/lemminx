@@ -1,5 +1,154 @@
 # Change Log
 
+## [0.25.0](https://github.com/eclipse/lemminx/milestone/40?closed=1) (April 18, 2023)
+
+### Enhancements
+
+ * Send (aggregated) `server.document.open` events at fixed periods. See [#1198](https://github.com/eclipse/lemminx/pull/1198).
+ * Provide cancel support for hover. See [#1474](https://github.com/eclipse/lemminx/issues/1474).
+ * Bump LSP4J version from 0.14.0 to 0.20.1. See [#1497](https://github.com/eclipse/lemminx/issues/1497).
+
+### Bug Fixes
+
+ * `shutdown` response does not conform to language server spec. See [#1508](https://github.com/eclipse/lemminx/issues/1508).
+ * Comments throws off the `cvc-complex-type.2.3` diagnostic range. See [#1495](https://github.com/eclipse/lemminx/issues/1495).
+ * Fix potential `NullPointerException` in completion code. See [#1506](https://github.com/eclipse/lemminx/pull/1506).
+ * XML language server should report "selection range" capability non-dynamically. See [#1507](https://github.com/eclipse/lemminx/pull/1507).
+ * RNG attribute completion doesn't generate the proper prefix if the namespace is not declared. See [#1489](https://github.com/eclipse/lemminx/issues/1489).
+ * Partial formatting yields wrong indentation depth. See [#1485](https://github.com/eclipse/lemminx/issues/1485).
+ * `NullPointerException` in `documentColor`. See [#1473](https://github.com/eclipse/lemminx/issues/1473).
+ * Adjust error range for RelaxNG "not allowed yet" when there is `choice`. See [#1459](https://github.com/eclipse/lemminx/issues/1459).
+ * Multiple `xml(DownloadProblem)` errors when referencing missing schema in file association. See [#1484](https://github.com/eclipse/lemminx/pull/1484).
+ * XML attribute associated to wrong type from XSD. See [#1480](https://github.com/eclipse/lemminx/pull/1480).
+
+### Build
+
+ * Use Eclipse Temurin in GitHub Actions. See [#1510](https://github.com/eclipse/lemminx/pull/1510).
+
+## [0.24.0](https://github.com/eclipse/lemminx/milestone/37?closed=1) (January 31, 2023)
+
+### Enhancements
+
+ * Completion, definition, references, diagnostics, highlight, code lens, rename, linked editing support for XML references. See [#1435](https://github.com/eclipse/lemminx/pull/1435), [#1427](https://github.com/eclipse/lemminx/issues/1427), [#1432](https://github.com/eclipse/lemminx/pull/1432), [#1452](https://github.com/eclipse/lemminx/pull/1452), [#1367](https://github.com/eclipse/lemminx/issues/1367).
+ * Code action to add missing required elements with RelaxNG. See [#1418](https://github.com/eclipse/lemminx/issues/1418).
+ * Improve the RelaxNG schema validation. See [#1425](https://github.com/eclipse/lemminx/pull/1425).
+ * Code action to generate RelaxNG RNG file. See [#1405](https://github.com/eclipse/lemminx/issues/1405).
+ * Support for `textDocument/documentColor`. See [#639](https://github.com/eclipse/lemminx/issues/639).
+
+### Bug Fixes
+
+ * "Insert element" code actions don't add close tags when auto close tag is disabled. See [#1458](https://github.com/eclipse/lemminx/issues/1458).
+ * Improve "Insert only required expected elements" by taking care of choice. See [#1448](https://github.com/eclipse/lemminx/issues/1448).
+ * Linked editing breaks start tag when closing tag manually. See [#1456](https://github.com/eclipse/lemminx/issues/1456).
+ * Ignore linked editing range when there are no referenced node to update. See [#1453](https://github.com/eclipse/lemminx/pull/1453).
+ * Formatting selection fails with root element with mixed content. See [#1414](https://github.com/eclipse/lemminx/issues/1414).
+ * `SAXParseException` in the language server trace when editing an `.rng` file. See [#1441](https://github.com/eclipse/lemminx/issues/1441).
+ * Ensure attributes on the first line are wrapped correctly. See [#1439](https://github.com/eclipse/lemminx/issues/1439).
+ * Fix comment formatting with `xml.format.maxLineWidth`. See [#1433](https://github.com/eclipse/lemminx/pull/1433).
+ * Permit binding to a schema from an empty document. See [#1408](https://github.com/eclipse/lemminx/pull/1408).
+ * RelaxNG validation with `XInclude` / File association report `DOCTYPE` error. See [#1421](https://github.com/eclipse/lemminx/issues/1421).
+ * DocumentLink support for `xi:include/@href`. See [#1401](https://github.com/eclipse/lemminx/issues/1401).
+ * Binary server doesn't show "element missing child" warning in broken RelaxNG. See [#1460](https://github.com/eclipse/lemminx/issues/1460).
+ * Refactor "Register catalog" code lens to be in catalog package. See [#1417](https://github.com/eclipse/lemminx/pull/1417).
+
+## [0.23.2](https://github.com/eclipse/lemminx/milestone/39?closed=1) (December 15, 2022)
+
+### Bug Fixes
+
+ * Add explicit no-arg constructor for `ConfigurationItemEdit`. See [#1412](https://github.com/eclipse/lemminx/pull/1412).
+
+## [0.23.1](https://github.com/eclipse/lemminx/milestone/38?closed=1) (December 15, 2022)
+
+### Bug Fixes
+
+ * Fix "Surround with ..." when using the binary server. See [#1410](https://github.com/eclipse/lemminx/pull/1410).
+ * Fix "Register catalog" code lens when using the binary server. See [#1411](https://github.com/eclipse/lemminx/pull/1411).
+
+## [0.23.0](https://github.com/eclipse/lemminx/milestone/36?closed=1) (December 14, 2022)
+
+### Enhancements
+
+ * Codelens, completion, definition, documentLink, highlighting, references, rename support in RelaxNG file. See [#1400](https://github.com/eclipse/lemminx/pull/1400).
+ * Surround selection with XML element. See [#1389](https://github.com/eclipse/lemminx/pull/1389).
+ * Enable the experimental formatter by default and add `xml.format.legacy` setting to retain previous formatter. See [#1377](https://github.com/eclipse/lemminx/issues/1377).
+ * Add validation support for XInclude. See [#1387](https://github.com/eclipse/lemminx/pull/1387).
+ * Full support for `xml.format.maxLineWidth` with experimental formatter. See [#1248](https://github.com/eclipse/lemminx/issues/1248), [#1359](https://github.com/eclipse/lemminx/pull/1359), and [#1363](https://github.com/eclipse/lemminx/pull/1363).
+ * Add codelens and command to register/unregister catalog. See [#1390](https://github.com/eclipse/lemminx/pull/1390).
+ * Support `files.trimTrailingWhitespace` setting with experimental formatter. See [#1310](https://github.com/eclipse/lemminx/issues/1310).
+ * Remove `xml.format.preserveEmptyContent` setting for experimental formatter. See [#1346](https://github.com/eclipse/lemminx/issues/1346).
+ * Improve text content formatting for experimental formatter. See [#1331](https://github.com/eclipse/lemminx/issues/1331).
+
+### Performance
+
+ * Improve formatting performance with `xml.format.grammarAwareFormatting` setting. See [#1368](https://github.com/eclipse/lemminx/issues/1368).
+
+### Bug Fixes
+
+ * NPE in CodeLens with empty XML file. See [#1396](https://github.com/eclipse/lemminx/issues/1396).
+ * RelaxNG schema validation not working when DOCTYPE declaration is missing. See [#1393](https://github.com/eclipse/lemminx/pull/1393).
+ * XSD based Autocompletion for substitutionGroup. See [#1386](https://github.com/eclipse/lemminx/pull/1386).
+ * Generate grammar fails on first attempt with experimental formatter. See [#1382](https://github.com/eclipse/lemminx/issues/1382).
+ * Applying XML completion generates invalid XML content. See [#1373](https://github.com/eclipse/lemminx/issues/1373).
+ * Generate and bind schema doesn't work with experimental formatter. See [#1365](https://github.com/eclipse/lemminx/pull/1365).
+ * Add tests for `xml.format.grammarAwareFormatting` setting and restore mixed content behavior. See [#1364](https://github.com/eclipse/lemminx/pull/1364).
+ * Prevent exception in `DomElementFormatter.formatEndTagElement()`. See [#1361](https://github.com/eclipse/lemminx/issues/1361).
+ * Fix unexpected behavior of `xml.format.preservedNewlines` with experimental formatter. See [#1341](https://github.com/eclipse/lemminx/pull/1341).
+ * Autoclose tag generates an unexpected `>`. See [#1221](https://github.com/eclipse/lemminx/issues/1221).
+
+### Build
+
+ * Add Windows PR verification job and move all PR verification jobs to github actions. See [#1311](https://github.com/eclipse/lemminx/issues/1311).
+ * Bump Maven build plugins and dependencies. See [#1319](https://github.com/eclipse/lemminx/pull/1319), [#1325](https://github.com/eclipse/lemminx/pull/1325), [#1326](https://github.com/eclipse/lemminx/pull/1326), [#1339](https://github.com/eclipse/lemminx/pull/1339), [#1344](https://github.com/eclipse/lemminx/pull/1344), [#1349](https://github.com/eclipse/lemminx/pull/1349), [#1350](https://github.com/eclipse/lemminx/pull/1350), [#1351](https://github.com/eclipse/lemminx/pull/1351), [#1353](https://github.com/eclipse/lemminx/pull/1353), [#1355](https://github.com/eclipse/lemminx/pull/1355), and [#1356](https://github.com/eclipse/lemminx/pull/1356).
+
+## [0.22.0](https://github.com/eclipse/lemminx/milestone/35?closed=1) (October 19, 2022)
+
+### Enhancements
+
+ * Initialize RelaxNG support with validation/completion/hover. See [#828](https://github.com/eclipse/lemminx/issues/828).
+ * Support `xml.format.closingBracketNewLine` setting with experimental formatter. See [#1247](https://github.com/eclipse/lemminx/issues/1247).
+ * Support `xml.format.xsiSchemaLocationSplit` setting with experimental formatter. See [#1246](https://github.com/eclipse/lemminx/issues/1246).
+ * Support `xml.format.spaceBeforeEmptyCloseTag` setting with experimental formatter. See [#1245](https://github.com/eclipse/lemminx/issues/1245).
+ * Support `xml.format.joinContentLines` setting with experimental formatter. See [#1244](https://github.com/eclipse/lemminx/issues/1244).
+ * Support `xml.format.joinCommentLines` setting with experimental formatter. See [#1243](https://github.com/eclipse/lemminx/issues/1243).
+ * Support `xml.format.preserveEmptyContent` setting with experimental formatter. See [#1242](https://github.com/eclipse/lemminx/issues/1242).
+ * Support `xml.format.joinCDATALines` setting with experimental formatter. See [#1241](https://github.com/eclipse/lemminx/issues/1241).
+ * Support `xml.format.preservedNewlines` setting with experimental formatter. See [#1240](https://github.com/eclipse/lemminx/issues/1240).
+ * Support `xml.format.enforceQuoteStyle` setting with experimental formatter. See [#1239](https://github.com/eclipse/lemminx/issues/1239).
+ * Support `xml.format.emptyElements` setting with experimental formatter. See [#1238](https://github.com/eclipse/lemminx/issues/1238).
+ * Provide comment formatting for experimental formatter. See [#1259](https://github.com/eclipse/lemminx/issues/1259). 
+ * CodeAction for `cvc-complex-type.2.4.b`: "insert all expected" vs. "insert all possible". See [#1255](https://github.com/eclipse/lemminx/issues/1255).  
+ * Suppress validation kinds based on file pattern. See [#1275](https://github.com/eclipse/lemminx/issues/1275).
+ * Report only XML syntax error for *.exsd files. See [#1308](https://github.com/eclipse/lemminx/pull/1308).  
+ * Place relevant information on the first line of error messages. See [#1145](https://github.com/eclipse/lemminx/issues/1145).
+ * Validate uri of XML catalog. See [#823](https://github.com/eclipse/lemminx/issues/823).
+ * Do not complete paths in attr unless beginning of value looks like a path. See [#1293](https://github.com/eclipse/lemminx/pull/1293). 
+ * Use the HTTP proxy configuration for HTTPS as well. See [#1253](https://github.com/eclipse/lemminx/pull/1253).
+
+### Bug Fixes
+
+ * Fix tests on Windows OS. See [#1306](https://github.com/eclipse/lemminx/pull/1306).
+ * Annotations found in base complex type not shown on hover. See [#1268](https://github.com/eclipse/lemminx/pull/1268).
+ * Autocompletion of attribute values won't display documentation. See [#1260](https://github.com/eclipse/lemminx/pull/1260).
+ * Format CDATA sections without adding new lines. See [#1193](https://github.com/eclipse/lemminx/issues/1193).
+ * Formatting with `xml.format.emptyElements`: `expand` chokes on malformed XML. See [#650](https://github.com/eclipse/lemminx/issues/650).
+ * Null pointer exception when processing code action `cvc_complex_type_2_4_b`. See [#1280](https://github.com/eclipse/lemminx/issues/1280).
+
+### Build
+
+ * Fix CI badge, add some more badges. See [#1262](https://github.com/eclipse/lemminx/pull/1262).
+ * Enable dependabot. See [#1309](https://github.com/eclipse/lemminx/pull/1309).
+ * Unit tests should not store data in the .lemminx folder under the user's home directory. See [#1265](https://github.com/eclipse/lemminx/issues/1265).
+ * Update Jenkins and GH Actions build scripts to reflect branch renaming. See [#1261](https://github.com/eclipse/lemminx/pull/1261).
+ * Bump build-helper-maven-plugin from 3.0.0 to 3.3.0. See [#1322](https://github.com/eclipse/lemminx/pull/1322).
+ * Bump maven-assembly-plugin from 3.1.1 to 3.4.2. See [#1321](https://github.com/eclipse/lemminx/pull/1321).
+ * Bump maven-bundle-plugin from 5.1.1 to 5.1.8. See [#1315](https://github.com/eclipse/lemminx/pull/1315).
+ * Bump maven-source-plugin from 3.0.1 to 3.2.1. See [#1314](https://github.com/eclipse/lemminx/pull/1314).
+
+### Other
+
+ * Add test for formatting with xs:documentation multiline content. See [#1303](https://github.com/eclipse/lemminx/pull/1303).
+ * Enable tests for experimental formatter. See [#1327](https://github.com/eclipse/lemminx/issues/1327).
+
 ## [0.21.0](https://github.com/eclipse/lemminx/milestone/34?closed=1) (June 29, 2022)
 
 ### Enhancements

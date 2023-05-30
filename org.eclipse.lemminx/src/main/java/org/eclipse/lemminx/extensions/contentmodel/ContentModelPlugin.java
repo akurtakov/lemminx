@@ -14,10 +14,12 @@ package org.eclipse.lemminx.extensions.contentmodel;
 
 import java.util.Objects;
 
+import org.eclipse.lemminx.XMLTextDocumentService.SaveContext;
 import org.eclipse.lemminx.dom.DOMDocument;
 import org.eclipse.lemminx.extensions.contentmodel.commands.AssociateGrammarCommand;
 import org.eclipse.lemminx.extensions.contentmodel.commands.CheckBoundGrammarCommand;
 import org.eclipse.lemminx.extensions.contentmodel.commands.CheckFilePatternCommand;
+import org.eclipse.lemminx.extensions.contentmodel.commands.SurroundWithCommand;
 import org.eclipse.lemminx.extensions.contentmodel.commands.XMLValidationAllFilesCommand;
 import org.eclipse.lemminx.extensions.contentmodel.commands.XMLValidationFileCommand;
 import org.eclipse.lemminx.extensions.contentmodel.model.ContentModelManager;
@@ -37,7 +39,6 @@ import org.eclipse.lemminx.extensions.contentmodel.settings.XMLValidationSetting
 import org.eclipse.lemminx.services.IXMLDocumentProvider;
 import org.eclipse.lemminx.services.IXMLValidationService;
 import org.eclipse.lemminx.services.extensions.IDocumentLinkParticipant;
-import org.eclipse.lemminx.services.extensions.IHoverParticipant;
 import org.eclipse.lemminx.services.extensions.ITypeDefinitionParticipant;
 import org.eclipse.lemminx.services.extensions.IXMLExtension;
 import org.eclipse.lemminx.services.extensions.XMLExtensionsRegistry;
@@ -46,6 +47,7 @@ import org.eclipse.lemminx.services.extensions.codelens.ICodeLensParticipant;
 import org.eclipse.lemminx.services.extensions.commands.IXMLCommandService;
 import org.eclipse.lemminx.services.extensions.completion.ICompletionParticipant;
 import org.eclipse.lemminx.services.extensions.diagnostics.IDiagnosticsParticipant;
+import org.eclipse.lemminx.services.extensions.hover.IHoverParticipant;
 import org.eclipse.lemminx.services.extensions.save.ISaveContext;
 import org.eclipse.lemminx.uriresolver.URIResolverExtensionManager;
 import org.eclipse.lemminx.utils.DOMUtils;
@@ -136,6 +138,9 @@ public class ContentModelPlugin implements IXMLExtension {
 			if (catalogPathsChanged) {
 				// Validate all opened XML files
 				validateAllOpenedDocument(context);
+				if (context instanceof SaveContext) {
+					((SaveContext) context).setRefreshCodeLenses(true);
+				}
 			}
 		}
 		if (settings.getFileAssociations() != null) {
@@ -227,6 +232,8 @@ public class ContentModelPlugin implements IXMLExtension {
 			commandService.registerCommand(CheckBoundGrammarCommand.COMMAND_ID,
 					new CheckBoundGrammarCommand(documentProvider));
 			commandService.registerCommand(CheckFilePatternCommand.COMMAND_ID, new CheckFilePatternCommand());
+			commandService.registerCommand(SurroundWithCommand.COMMAND_ID,
+					new SurroundWithCommand(documentProvider, contentModelManager));
 		}
 	}
 
@@ -251,6 +258,7 @@ public class ContentModelPlugin implements IXMLExtension {
 			commandService.unregisterCommand(AssociateGrammarCommand.COMMAND_ID);
 			commandService.unregisterCommand(CheckBoundGrammarCommand.COMMAND_ID);
 			commandService.unregisterCommand(CheckFilePatternCommand.COMMAND_ID);
+			commandService.unregisterCommand(SurroundWithCommand.COMMAND_ID);
 		}
 	}
 
